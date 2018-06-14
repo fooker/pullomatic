@@ -2,48 +2,78 @@ extern crate git2;
 #[macro_use]
 extern crate serde_derive;
 extern crate toml;
+extern crate ctrlc;
+
 
 use config::Config;
 use repo::Repo;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering, Mutex};
+use std::sync::mpsc;
 use std::thread;
-use std::time::{Instant,Duration};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
 
 mod config;
 mod repo;
 
 
-fn handle(repo: &mut Repo) {
-    match repo.update() {
-        Ok(true) => {}
-        Ok(false) => {}
-        Err(err) => {}
-    }
-}
+const running: AtomicBool = AtomicBool::new(true);
 
 fn main() {
-    let repos: Arc<Mutex<Vec<_>>> = Arc::new(Mutex::new(Config::load("/etc/pullomat").expect("Failed to load config")
-                                                                                .into_iter()
-                                                                                .map(|(name, config)| Repo::new(name, config))
-                                                                                .collect()));
+    let repos: Arc<Vec<Arc<Mutex<Repo>>>> = Arc::new(
+        Config::load("/etc/pullomat")
+                .expect("Failed to load config")
+                .into_iter()
+                .map(|(name, config)| Arc::new(Mutex::new(Repo::new(name, config))))
+                .collect());
+
+    // Create worker queue
+    let (producer, consumer) = mpsc::channel();
 
     // Start periodic update tasks
-    let ticker = thread::spawn(move || {
-        loop {
-            thread::sleep(Duration::from_secs(1));
+    let tickers: Vec<JoinHandle<()>> = repos.iter().cloned().filter_map(|repo| {
+        let interval = repo.lock().unwrap().config.interval;
 
-            // Scan for repos needing update
-            let mut repos = repos.lock().unwrap();
-            for repo in repos.iter_mut() {
-                if let Some(interval) = repo.config.interval {
-                    if repo.last_updated().map_or(true, |t| t + interval < Instant::now()) {
-                        handle(repo);
+        if let Some(interval) = interval {
+            let producer = producer.clone();
+
+            return Some(thread::spawn(move || {
+                while running.load(Ordering::Relaxed) {
+                    thread::sleep(Duration::from_secs(1));
+
+                    if repo.lock().unwrap().last_updated().map_or(true, |t| t + interval < Instant::now()) {
+                        producer.send(repo.clone());
                     }
                 }
+
+                println!("Done");
+            }));
+        } else {
+            return None;
+        }
+    }).collect();
+
+    // Handle Signals
+    // FIXME: Does not work...
+//    ctrlc::set_handler(move || {
+//        running.store(false, Ordering::SeqCst);
+//    }).expect("Error setting Ctrl-C handler");
+
+    // Handle updates
+    for repo in consumer {
+        let mut repo = repo.lock().unwrap();
+        match repo.update() {
+            Ok(true) => {}
+            Ok(false) => {}
+            Err(err) => {
+                eprintln!("[{}] Error while updating: {:?}", repo.name, err);
             }
         }
-    });
+    }
 
-    ticker.join();
+    for ticker in tickers {
+        ticker.join();
+    }
 }

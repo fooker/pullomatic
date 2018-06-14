@@ -67,33 +67,39 @@ impl Repo {
     }
 
     pub fn update(&mut self) -> Result<bool, UpdateError> {
+        self.last_updated = Some(Instant::now());
+
         let path = Path::new(&self.config.path);
 
         let repository: git2::Repository;
         if path.exists() {
+            println!("[{}] Using existing repository", self.name);
+
             // Open the repo or give up
             repository = git2::Repository::open(path)?;
-            println!("[{}] Using existing repository", self.name);
+
         } else {
+            println!("[{}] Initialized new repository", self.name);
+
             // Create the directory and init the repo
             fs::create_dir_all(path)?;
-
             repository = git2::Repository::init(path)?;
-            println!("[{}] Initialized new repository", self.name);
         }
 
         let mut remote = repository.remote_anonymous(&self.config.remote_url)?;
 
         let mut remote_cb = git2::RemoteCallbacks::new();
-//        remote_cb.credentials(|url, username, allowed| {
-//            println!("[{}] cred: url = {:?}", self.name, url);
-//            println!("[{}] cred: username = {:?}", self.name, username);
-//            println!("[{}] cred: allowed = {:?}", self.name, allowed);
-//
-//            return git2::Cred::ssh_key_from_agent(username.unwrap());
-//        });
-        // FIXME: Sane implementation for credential handling
+        remote_cb.credentials(|url, username, allowed| {
+            // FIXME: Implement in-memory keys
 
+            println!("[] cred: url = {:?}", url);
+            println!("[] cred: username = {:?}", username);
+            println!("[] cred: allowed = {:?}", allowed);
+
+            return git2::Cred::ssh_key(username.unwrap(), None, Path::new(""), None);
+        });
+
+        println!("[{}] Fetching data from remote", self.name);
         remote.fetch(&[&format!("+refs/heads/{}:refs/pullomatic", self.config.remote_branch)],
                      Some(git2::FetchOptions::new()
                              .prune(git2::FetchPrune::On)
@@ -113,12 +119,11 @@ impl Repo {
                                      .remove_untracked(true)))?;
 
             println!("[{}] Updated to {}", self.name, remote_obj.id());
-            self.last_updated = Some(Instant::now());
             self.last_changed = self.last_updated;
             return Ok(true);
+
         } else {
             println!("[{}] Already up to date", self.name);
-            self.last_updated = Some(Instant::now());
             return Ok(false);
         }
     }

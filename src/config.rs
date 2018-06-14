@@ -50,11 +50,21 @@ impl From<io::Error> for ConfigError {
 
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct SSHCredentials {
+    pub public_key: String,
+    pub private_key: String,
+
+    pub passphrase: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub path: String,
 
     pub remote_url: String,
     pub remote_branch: String,
+
+    pub ssh: Option<SSHCredentials>,
 
     pub interval: Option<Duration>,
 }
@@ -77,7 +87,7 @@ impl Config {
     }
 
     fn load_config<P>(path: P) -> Result<Self, ConfigError> where P: AsRef<Path> {
-        // FIXME: Secify interval as string (i.e. "5m")
+        // FIXME: Specify interval as string (i.e. "5m")
 
         let mut input = String::new();
         fs::File::open(&path).and_then(|mut f| {
