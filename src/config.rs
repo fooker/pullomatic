@@ -58,6 +58,19 @@ pub struct SSHCredentials {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub enum WebhookProvider {
+    GitHub,
+    GitLab,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Webhook {
+//    pub provider: WebhookProvider,
+
+    pub secret: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub path: String,
 
@@ -67,6 +80,8 @@ pub struct Config {
     pub ssh: Option<SSHCredentials>,
 
     pub interval: Option<Duration>,
+    pub webhook: Option<Webhook>,
+
 }
 
 impl Config {
