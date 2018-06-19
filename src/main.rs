@@ -1,6 +1,5 @@
 extern crate ctrlc;
 extern crate git2;
-#[macro_use]
 extern crate rouille;
 #[macro_use]
 extern crate serde_derive;
@@ -9,11 +8,8 @@ extern crate toml;
 
 use config::Config;
 use repo::Repo;
-use std::collections::HashMap;
-use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering, Mutex};
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
+use std::sync::mpsc;
 
 
 mod config;
@@ -22,7 +18,7 @@ mod ticker;
 mod webhook;
 
 
-pub static running: AtomicBool = AtomicBool::new(true);
+pub static RUNNING: AtomicBool = AtomicBool::new(true);
 
 
 fn main() {
@@ -34,7 +30,7 @@ fn main() {
                 .collect());
 
     // Create worker queue
-    let (producer, consumer) = mpsc::channel();
+    let (producer, consumer) = mpsc::sync_channel(0);
 
     // Handles for background tasks
     let mut handles = vec![];
@@ -55,7 +51,7 @@ fn main() {
     // Handle Signals
     ctrlc::set_handler(move || {
         println!("Terminating...");
-        running.store(false, Ordering::SeqCst);
+        RUNNING.store(false, Ordering::SeqCst);
     }).expect("Error setting Ctrl-C handler");
 
     // Handle updates
@@ -69,9 +65,7 @@ fn main() {
         }
     }
 
-    println!("Done");
-
     for handle in handles {
-        handle.join();
+        handle.join().unwrap();
     }
 }
