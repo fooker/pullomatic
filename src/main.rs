@@ -8,6 +8,7 @@ extern crate toml;
 
 use config::Config;
 use repo::Repo;
+use std::error::Error;
 use std::process::Command;
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
 use std::sync::mpsc;
@@ -23,12 +24,19 @@ pub static RUNNING: AtomicBool = AtomicBool::new(true);
 
 
 fn main() {
-    let repos: Arc<Vec<Arc<Repo>>> = Arc::new(
-        Config::load("/etc/pullomatic")
-                .expect("Failed to load config")
-                .into_iter()
-                .map(|(name, config)| Arc::new(Repo::new(name, config)))
-                .collect());
+    let config = Config::load("/etc/pullomatic");
+    let config = match config {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("Failed to load config: {}", err.description());
+            return;
+        }
+    };
+
+    let repos: Arc<Vec<Arc<Repo>>> = Arc::new(config
+            .into_iter()
+            .map(|(name, config)| Arc::new(Repo::new(name, config)))
+            .collect());
 
     // Create worker queue
     let (producer, consumer) = mpsc::sync_channel(0);
@@ -67,9 +75,7 @@ fn main() {
                             .status();
 
                     match status {
-                        Ok(status) => {
-
-                        }
+                        Ok(status) => {}
                         Err(err) => {
                             eprintln!("[{}] Error while executing script: {:?}", repo.name(), err);
                         }
