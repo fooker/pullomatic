@@ -77,6 +77,8 @@ pub struct Config {
     pub remote_url: String,
     pub remote_branch: String,
 
+    pub on_change: Option<String>,
+
     pub ssh: Option<SSHCredentials>,
 
     pub interval: Option<Duration>,

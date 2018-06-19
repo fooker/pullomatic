@@ -8,6 +8,7 @@ extern crate toml;
 
 use config::Config;
 use repo::Repo;
+use std::process::Command;
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
 use std::sync::mpsc;
 
@@ -57,8 +58,27 @@ fn main() {
     // Handle updates
     for repo in consumer {
         match repo.update() {
-            Ok(true) => {}
-            Ok(false) => {}
+            Ok(Some(changes)) => {
+                if let Some(ref script) = repo.config().on_change {
+                    let status = Command::new("sh")
+                            .arg("-c")
+                            .arg(script)
+                            .current_dir(&repo.config().path)
+                            .status();
+
+                    match status {
+                        Ok(status) => {
+
+                        }
+                        Err(err) => {
+                            eprintln!("[{}] Error while executing script: {:?}", repo.name(), err);
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                // Nothing changed
+            }
             Err(err) => {
                 eprintln!("[{}] Error while updating: {:?}", repo.name(), err);
             }

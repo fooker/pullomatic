@@ -5,8 +5,8 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
-use std::time::Instant;
 use std::sync::Mutex;
+use std::time::Instant;
 
 
 struct RepoState {
@@ -19,6 +19,11 @@ pub struct Repo {
     config: Config,
 
     state: Mutex<RepoState>,
+}
+
+pub struct Changes {
+    pub prev_id: Option<git2::Oid>,
+    pub curr_id: git2::Oid,
 }
 
 #[derive(Debug)]
@@ -69,11 +74,11 @@ impl Repo {
             state: Mutex::new(RepoState {
                 last_changed: None,
                 last_updated: None,
-            })
+            }),
         };
     }
 
-    pub fn update(&self) -> Result<bool, UpdateError> {
+    pub fn update(&self) -> Result<Option<Changes>, UpdateError> {
         let now = Some(Instant::now());
 
         self.state.lock().unwrap().last_updated = now;
@@ -86,7 +91,6 @@ impl Repo {
 
             // Open the repo or give up
             repository = git2::Repository::open(path)?;
-
         } else {
             println!("[{}] Initialized new repository", self.name);
 
@@ -101,9 +105,9 @@ impl Repo {
         remote_cb.credentials(|url, username, allowed| {
             // FIXME: Implement in-memory keys
 
-            println!("[] cred: url = {:?}", url);
-            println!("[] cred: username = {:?}", username);
-            println!("[] cred: allowed = {:?}", allowed);
+            println!("[{}] cred: url = {:?}", self.name, url);
+            println!("[{}] cred: username = {:?}", self.name, username);
+            println!("[{}] cred: allowed = {:?}", self.name, allowed);
 
             return git2::Cred::ssh_key(username.unwrap(), None, Path::new(""), None);
         });
@@ -120,21 +124,25 @@ impl Repo {
         let latest_obj = repository.revparse_single("HEAD").ok();
         let remote_obj = repository.revparse_single("refs/pullomatic")?;
 
-        if latest_obj.map_or(true, |v| v.id() != remote_obj.id()) {
-            repository.reset(&remote_obj,
-                             git2::ResetType::Hard,
-                             Some(git2::build::CheckoutBuilder::new()
-                                     .force()
-                                     .remove_untracked(true)))?;
-
-            println!("[{}] Updated to {}", self.name, remote_obj.id());
-            self.state.lock().unwrap().last_changed = now;
-            return Ok(true);
-
-        } else {
-            println!("[{}] Already up to date", self.name);
-            return Ok(false);
+        if let Some(ref latest_obj) = latest_obj {
+            if latest_obj.id() == remote_obj.id() {
+                println!("[{}] Already up to date", self.name);
+                return Ok(None);
+            }
         }
+
+        repository.reset(&remote_obj,
+                         git2::ResetType::Hard,
+                         Some(git2::build::CheckoutBuilder::new()
+                                 .force()
+                                 .remove_untracked(true)))?;
+
+        println!("[{}] Updated to {}", self.name, remote_obj.id());
+        self.state.lock().unwrap().last_changed = now;
+        return Ok(Some(Changes {
+            prev_id: latest_obj.map(|ref obj| obj.id()),
+            curr_id: remote_obj.id(),
+        }));
     }
 
     pub fn name(&self) -> &str { &self.name }
