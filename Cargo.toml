@@ -12,5 +12,5 @@ serde_derive = "1.0"
 
 ctrlc = { version = "3.0", features = ["termination"]}
 
-hyper = "0.12"
+rouille = "2.1"
 

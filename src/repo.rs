@@ -6,14 +6,19 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
+use std::sync::Mutex;
 
 
-pub struct Repo {
-    pub name: String,
-    pub config: Config,
-
+struct RepoState {
     last_updated: Option<Instant>,
     last_changed: Option<Instant>,
+}
+
+pub struct Repo {
+    name: String,
+    config: Config,
+
+    state: Mutex<RepoState>,
 }
 
 #[derive(Debug)]
@@ -61,13 +66,17 @@ impl Repo {
             name,
             config,
 
-            last_changed: None,
-            last_updated: None,
+            state: Mutex::new(RepoState {
+                last_changed: None,
+                last_updated: None,
+            })
         };
     }
 
-    pub fn update(&mut self) -> Result<bool, UpdateError> {
-        self.last_updated = Some(Instant::now());
+    pub fn update(&self) -> Result<bool, UpdateError> {
+        let now = Some(Instant::now());
+
+        self.state.lock().unwrap().last_updated = now;
 
         let path = Path::new(&self.config.path);
 
@@ -119,7 +128,7 @@ impl Repo {
                                      .remove_untracked(true)))?;
 
             println!("[{}] Updated to {}", self.name, remote_obj.id());
-            self.last_changed = self.last_updated;
+            self.state.lock().unwrap().last_changed = now;
             return Ok(true);
 
         } else {
@@ -128,6 +137,10 @@ impl Repo {
         }
     }
 
-    pub fn last_updated(&self) -> Option<Instant> { self.last_updated }
-    pub fn last_changed(&self) -> Option<Instant> { self.last_changed }
+    pub fn name(&self) -> &str { &self.name }
+
+    pub fn config(&self) -> &Config { &self.config }
+
+    pub fn last_updated(&self) -> Option<Instant> { self.state.lock().unwrap().last_updated }
+    pub fn last_changed(&self) -> Option<Instant> { self.state.lock().unwrap().last_changed }
 }
