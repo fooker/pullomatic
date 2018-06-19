@@ -1,16 +1,16 @@
-`pullomat` automates GIT repository synchronisation.
+`pullomatic` automates GIT repository synchronisation.
 
 Storing configuration or other application data in a GIT repository is a common practice.
 Usually custom scripts are used to pull updates from remote from time to time.
-`pullomat` replaces these scripts with pure configuration.
+`pullomatic` replaces these scripts with pure configuration.
 
-Beside the polling interval, `pullomat` provides a HTTP endpoint which can be used to trigger updates by web-hooks.
+Beside the polling interval, `pullomatic` provides a HTTP endpoint which can be used to trigger updates by web-hooks.
 
 Whenever a change is detected in the remote repository branch, the new branch head will be checked out to the path.
 
 ## Configuration
 
-Each repository is configured in a single file which must be placed inside `/etc/pullomat/`.
+Each repository is configured in a single file which must be placed inside `/etc/pullomatic/`.
 The filename is used as repository name and must be formatted as TOML file.
 
 The main section must contain a `path` which specifies the path where the repository lives.

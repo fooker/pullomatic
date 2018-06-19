@@ -24,7 +24,7 @@ pub static RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn main() {
     let repos: Arc<Vec<Arc<Repo>>> = Arc::new(
-        Config::load("/etc/pullomat")
+        Config::load("/etc/pullomatic")
                 .expect("Failed to load config")
                 .into_iter()
                 .map(|(name, config)| Arc::new(Repo::new(name, config)))

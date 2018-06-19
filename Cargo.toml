@@ -1,5 +1,5 @@
 [package]
-name = "pullomat"
+name = "pullomatic"
 version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
 
