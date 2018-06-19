@@ -1,10 +1,8 @@
-use config::Config;
 use repo::Repo;
-use rouille::{Request, Response, Server, url::Url};
-use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering, Mutex};
-use std::sync::mpsc::{self, Receiver, SyncSender};
+use rouille::{Request, Response, Server};
+use std::sync::{Arc, atomic::Ordering};
+use std::sync::mpsc::SyncSender;
 use std::thread::{self, JoinHandle};
-use std::borrow::Cow;
 
 
 pub fn serve(repos: Arc<Vec<Arc<Repo>>>,
