@@ -77,7 +77,7 @@ fn main() {
                     match status {
                         Ok(status) => {}
                         Err(err) => {
-                            eprintln!("[{}] Error while executing script: {:?}", repo.name(), err);
+                            eprintln!("[{}] Error while executing script: {}", repo.name(), err.description());
                         }
                     }
                 }
@@ -86,7 +86,7 @@ fn main() {
                 // Nothing changed
             }
             Err(err) => {
-                eprintln!("[{}] Error while updating: {:?}", repo.name(), err);
+                eprintln!("[{}] Error while updating: {}", repo.name(), err.description());
             }
         }
     }

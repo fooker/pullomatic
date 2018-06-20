@@ -48,14 +48,29 @@ impl From<io::Error> for ConfigError {
     fn from(err: io::Error) -> Self { ConfigError::Io(err) }
 }
 
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct SSHCredentials {
-    pub public_key: String,
+    pub username: Option<String>,
+
+    pub public_key: Option<String>,
     pub private_key: String,
 
     pub passphrase: Option<String>,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct PasswordCredentials {
+    pub username: Option<String>,
+    pub password: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Credentials {
+    SSH(SSHCredentials),
+    Password(PasswordCredentials),
+}
+
 
 #[derive(Clone, Debug, Deserialize)]
 pub enum WebhookProvider {
@@ -79,7 +94,7 @@ pub struct Config {
 
     pub on_change: Option<String>,
 
-    pub ssh: Option<SSHCredentials>,
+    pub credentials: Option<Credentials>,
 
     pub interval: Option<Duration>,
     pub webhook: Option<Webhook>,

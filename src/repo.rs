@@ -1,4 +1,4 @@
-use config::Config;
+use config::{Config, Credentials};
 use git2;
 use std::error;
 use std::fmt;
@@ -103,13 +103,41 @@ impl Repo {
 
         let mut remote_cb = git2::RemoteCallbacks::new();
         remote_cb.credentials(|url, username, allowed| {
-            // FIXME: Implement in-memory keys
-
             println!("[{}] cred: url = {:?}", self.name, url);
             println!("[{}] cred: username = {:?}", self.name, username);
             println!("[{}] cred: allowed = {:?}", self.name, allowed);
 
-            return git2::Cred::ssh_key(username.unwrap(), None, Path::new(""), None);
+            if allowed.contains(git2::CredentialType::USERNAME) {
+                match self.config.credentials {
+                    Some(Credentials::SSH(ref ssh)) => if let Some(ref username) = ssh.username {
+                        return git2::Cred::username(username);
+                    },
+
+                    Some(Credentials::Password(ref password)) => if let Some(ref username) = password.username {
+                        return git2::Cred::username(username);
+                    },
+
+                    None => return Err(git2::Error::from_str("Authentication is required"))
+                }
+            }
+
+            if allowed.contains(git2::CredentialType::SSH_MEMORY) {
+                if let Some(Credentials::SSH(ref ssh)) = self.config.credentials {
+                    return git2::Cred::ssh_key_from_memory(username.unwrap(),
+                                                           ssh.public_key.as_ref().map(String::as_ref),
+                                                           ssh.private_key.as_ref(),
+                                                           ssh.passphrase.as_ref().map(String::as_ref));
+                }
+            }
+
+            if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Some(Credentials::Password(ref password)) = self.config.credentials {
+                    return git2::Cred::userpass_plaintext(username.unwrap(),
+                                                      password.password.as_ref());
+                }
+            }
+
+            return Err(git2::Error::from_str("Unsupported authentication"));
         });
 
         println!("[{}] Fetching data from remote", self.name);

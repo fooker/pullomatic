@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
 
 [dependencies]
-git2 = "0.7"
+git2 = { version = "0.7", git = "https://github.com/fooker/git2-rs.git" }
 
 toml = "0.4"
 serde = "1.0"
