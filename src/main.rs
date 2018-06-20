@@ -66,7 +66,7 @@ fn main() {
     // Handle updates
     for repo in consumer {
         match repo.update() {
-            Ok(Some(changes)) => {
+            Ok(true) => {
                 if let Some(ref script) = repo.config().on_change {
                     let status = Command::new("sh")
                             .arg("-c")
@@ -75,16 +75,18 @@ fn main() {
                             .status();
 
                     match status {
-                        Ok(status) => {}
+                        Ok(_) => {}
                         Err(err) => {
                             eprintln!("[{}] Error while executing script: {}", repo.name(), err.description());
                         }
                     }
                 }
             }
-            Ok(None) => {
+
+            Ok(false) => {
                 // Nothing changed
             }
+
             Err(err) => {
                 eprintln!("[{}] Error while updating: {}", repo.name(), err.description());
             }

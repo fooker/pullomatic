@@ -10,7 +10,7 @@ use std::time::Instant;
 
 
 struct RepoState {
-    last_updated: Option<Instant>,
+    last_checked: Option<Instant>,
     last_changed: Option<Instant>,
 }
 
@@ -19,11 +19,6 @@ pub struct Repo {
     config: Config,
 
     state: Mutex<RepoState>,
-}
-
-pub struct Changes {
-    pub prev_id: Option<git2::Oid>,
-    pub curr_id: git2::Oid,
 }
 
 #[derive(Debug)]
@@ -72,16 +67,16 @@ impl Repo {
             config,
 
             state: Mutex::new(RepoState {
+                last_checked: None,
                 last_changed: None,
-                last_updated: None,
             }),
         };
     }
 
-    pub fn update(&self) -> Result<Option<Changes>, UpdateError> {
+    pub fn update(&self) -> Result<bool, UpdateError> {
         let now = Some(Instant::now());
 
-        self.state.lock().unwrap().last_updated = now;
+        self.state.lock().unwrap().last_checked = now;
 
         let path = Path::new(&self.config.path);
 
@@ -155,7 +150,7 @@ impl Repo {
         if let Some(ref latest_obj) = latest_obj {
             if latest_obj.id() == remote_obj.id() {
                 println!("[{}] Already up to date", self.name);
-                return Ok(None);
+                return Ok(false);
             }
         }
 
@@ -167,16 +162,13 @@ impl Repo {
 
         println!("[{}] Updated to {}", self.name, remote_obj.id());
         self.state.lock().unwrap().last_changed = now;
-        return Ok(Some(Changes {
-            prev_id: latest_obj.map(|ref obj| obj.id()),
-            curr_id: remote_obj.id(),
-        }));
+
+        return Ok(true);
     }
 
     pub fn name(&self) -> &str { &self.name }
 
     pub fn config(&self) -> &Config { &self.config }
 
-    pub fn last_updated(&self) -> Option<Instant> { self.state.lock().unwrap().last_updated }
-    pub fn last_changed(&self) -> Option<Instant> { self.state.lock().unwrap().last_changed }
+    pub fn last_checked(&self) -> Option<Instant> { self.state.lock().unwrap().last_checked }
 }
