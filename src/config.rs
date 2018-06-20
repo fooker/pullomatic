@@ -7,6 +7,7 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 use toml;
+use serde_humantime;
 
 
 #[derive(Debug)]
@@ -86,6 +87,12 @@ pub struct Webhook {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct Interval {
+    #[serde(with = "serde_humantime")]
+    pub interval: Duration,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub path: String,
 
@@ -96,7 +103,7 @@ pub struct Config {
 
     pub credentials: Option<Credentials>,
 
-    pub interval: Option<Duration>,
+    pub interval: Option<Interval>,
     pub webhook: Option<Webhook>,
 
 }

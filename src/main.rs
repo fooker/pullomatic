@@ -4,6 +4,7 @@ extern crate rouille;
 #[macro_use]
 extern crate serde_derive;
 extern crate toml;
+extern crate serde_humantime;
 
 
 use config::Config;
