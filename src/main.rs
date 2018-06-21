@@ -4,8 +4,8 @@ extern crate git2;
 extern crate rouille;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_yaml;
 extern crate serde_humantime;
-extern crate toml;
 
 
 use config::Config;

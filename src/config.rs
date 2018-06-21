@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
-use toml;
+use serde_yaml;
 use serde_humantime;
 
 
 #[derive(Debug)]
 pub enum ConfigError {
-    Parse(toml::de::Error),
+    Parse(serde_yaml::Error),
     Io(io::Error),
 }
 
@@ -41,8 +41,8 @@ impl error::Error for ConfigError {
     }
 }
 
-impl From<toml::de::Error> for ConfigError {
-    fn from(err: toml::de::Error) -> Self { ConfigError::Parse(err) }
+impl From<serde_yaml::Error> for ConfigError {
+    fn from(err: serde_yaml::Error) -> Self { ConfigError::Parse(err) }
 }
 
 impl From<io::Error> for ConfigError {
@@ -133,7 +133,7 @@ impl Config {
             f.read_to_string(&mut input)
         })?;
 
-        let config = toml::from_str(&input)?;
+        let config = serde_yaml::from_str(&input)?;
 
         return Ok(config);
     }

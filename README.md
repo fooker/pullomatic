@@ -11,9 +11,9 @@ Whenever a change is detected in the remote repository branch, the new branch he
 ## Configuration
 
 Each repository is configured in a single file which must be placed inside `/etc/pullomatic/`.
-The filename is used as repository name and must be formatted as TOML file.
+The filename is used as repository name and must be formatted as YAML file.
 
-The main section must contain a `path` which specifies the path where the repository lives.
+The configuration must contain a `path` which specifies the path where the repository lives locally.
 On startup, the existence of the repository will checked.
 If the repository does not exists, the remote repository will be cloned to that path.
 Second, the config must contain a `remote_url` and a `remote_branch` which specifies the remote URL of the GIT repository and the branch to check out.
@@ -31,18 +31,18 @@ Therefore, a `private_key` must be specified containing the SSH private key (as 
 Additionally, a `passphrase` can be specified which is used to unlock the key.
 If a `public_key` is given, it will not be derived from the private key, but the given one will be used.
 
+### Interval
+The check the repository regularly for changes, the configuration can contain a `interval` section.
+If this section is present, it must contain a `interval` parameter, which specifies the interval to poll for changes.
+The format of this option allows to specify the interval in multiple ways like `30sec` or `5m` (See [here](https://docs.rs/humantime/1.1.1/humantime/fn.parse_duration.html) for more details).
+
 ### Script
-Each repository configuration can include a `on_change` hook option which allows to specify a script which is executed every time the repository has changed.
+Each configuration can include a `on_change` hook option which allows to specify a script which is executed every time the repository has changed.
 The script is executed right after the updates has been checked out.
 It will be started with the working directory set to the local repository path.
 
 The script is executed using `sh -c` and therefor it can contain arbitrary shell commands over multiple lines.
 Buf for complex scripts, it is recommended to store the script externally (maybe in the repository itself) and just call the script inside the hook.
-
-### Interval
-The check the repository regularly for changes, the configuration con contain a `interval` section.
-If this section is present, it must contain a `interval` parameter, which specifies the interval to poll for changes.
-The format of this option allows to specify the interval in multiple ways like `30sec` or `5m` (See [here](https://docs.rs/humantime/1.1.1/humantime/fn.parse_duration.html) for more details).
 
 ### Overview
 
@@ -59,3 +59,4 @@ The following options are allowed in the configuration:
 | `credentials.public_key` | `str` | | The public SSH key matching the private SSH key |
 | `credentials.passphrase` | `str` | | The passphrase used to unlock the private SSH KEY|
 | `interval.interval` | `str` | | The interval used to check the remote GIT repository for updates |
+| `on_change` | `str` | | A script executed every time the repository has changed |
