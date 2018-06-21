@@ -1,16 +1,18 @@
+extern crate crossbeam;
 extern crate ctrlc;
 extern crate git2;
 extern crate rouille;
 #[macro_use]
 extern crate serde_derive;
-extern crate toml;
 extern crate serde_humantime;
+extern crate toml;
 
 
 use config::Config;
 use repo::Repo;
 use std::error::Error;
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
 use std::sync::mpsc;
 
@@ -68,20 +70,7 @@ fn main() {
     for repo in consumer {
         match repo.update() {
             Ok(true) => {
-                if let Some(ref script) = repo.config().on_change {
-                    let status = Command::new("sh")
-                            .arg("-c")
-                            .arg(script)
-                            .current_dir(&repo.config().path)
-                            .status();
-
-                    match status {
-                        Ok(_) => {}
-                        Err(err) => {
-                            eprintln!("[{}] Error while executing script: {}", repo.name(), err.description());
-                        }
-                    }
-                }
+                exec_hook(repo);
             }
 
             Ok(false) => {
@@ -96,5 +85,44 @@ fn main() {
 
     for handle in handles {
         handle.join().unwrap();
+    }
+}
+
+
+fn exec_hook(repo: Arc<Repo>) {
+    if let Some(ref script) = repo.config().on_change {
+        let mut child = Command::new("sh")
+                .arg("-c")
+                .arg(script)
+                .current_dir(&repo.config().path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("Failed to spawn script");
+
+        let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
+
+        crossbeam::scope(|scope| {
+            if let Some(stdout) = stdout {
+                let stdout = BufReader::new(stdout);
+                scope.spawn(|| {
+                    for line in stdout.lines() {
+                        println!("[{}] {}", repo.name(), line.unwrap());
+                    }
+                });
+            }
+
+            if let Some(stderr) = stderr {
+                let stderr = BufReader::new(stderr);
+                scope.spawn(|| {
+                    for line in stderr.lines() {
+                        eprintln!("[{}] {}", repo.name(), line.unwrap());
+                    }
+                });
+            }
+        });
+
+        child.wait().expect("Failed to wait for script");
     }
 }

@@ -18,14 +18,6 @@ On startup, the existence of the repository will checked.
 If the repository does not exists, the remote repository will be cloned to that path.
 Second, the config must contain a `remote_url` and a `remote_branch` which specifies the remote URL of the GIT repository and the branch to check out.
 
-The following options are allowed in the configuration:
-
-| Option | Type | Required | Description |
-| ------ | ---- | -------- |----------- |
-| `path` | `str` | ✓ | Path to the GIT repository on disk |
-| `remote_url` | `str` | ✓ | Remote URL of the GIT repository to pull changes from |
-| `remote_branch` | `str` | ✓ | The branch to check out and pull changes from |
-
 ### Credentials
 The configuration can contain a `credentials` section depending on the transport type used to connect to the remote GIT server.
 
@@ -39,7 +31,31 @@ Therefore, a `private_key` must be specified containing the SSH private key (as 
 Additionally, a `passphrase` can be specified which is used to unlock the key.
 If a `public_key` is given, it will not be derived from the private key, but the given one will be used.
 
+### Script
+Each repository configuration can include a `on_change` hook option which allows to specify a script which is executed every time the repository has changed.
+The script is executed right after the updates has been checked out.
+It will be started with the working directory set to the local repository path.
+
+The script is executed using `sh -c` and therefor it can contain arbitrary shell commands over multiple lines.
+Buf for complex scripts, it is recommended to store the script externally (maybe in the repository itself) and just call the script inside the hook.
+
 ### Interval
 The check the repository regularly for changes, the configuration con contain a `interval` section.
 If this section is present, it must contain a `interval` parameter, which specifies the interval to poll for changes.
 The format of this option allows to specify the interval in multiple ways like `30sec` or `5m` (See [here](https://docs.rs/humantime/1.1.1/humantime/fn.parse_duration.html) for more details).
+
+### Overview
+
+The following options are allowed in the configuration:
+
+| Option | Type | Required | Description |
+| ------ | ---- | -------- |----------- |
+| `path` | `str` | ✓ | Path to the GIT repository on disk |
+| `remote_url` | `str` | ✓ | Remote URL of the GIT repository to pull changes from |
+| `remote_branch` | `str` | ✓ | The branch to check out and pull changes from |
+| `credentials.username` | `str` | | The username to use if none is given by `remote_url` |
+| `credentials.password` | `str` | (✓) | The password used to authenticate (required for password authentication) |
+| `credentials.private_key` | `str` | (✓) | The private SSH key used to authenticate (required for SSH authentication) |
+| `credentials.public_key` | `str` | | The public SSH key matching the private SSH key |
+| `credentials.passphrase` | `str` | | The passphrase used to unlock the private SSH KEY|
+| `interval.interval` | `str` | | The interval used to check the remote GIT repository for updates |
