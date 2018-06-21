@@ -8,6 +8,31 @@ Beside the polling interval, `pullomatic` provides a HTTP endpoint which can be 
 
 Whenever a change is detected in the remote repository branch, the new branch head will be checked out to the path.
 
+
+## Features
+
+* One configuration file per repository allowing for easy deployment
+* Automatically creates target directory with initial clone
+* Runs as daemon and checks repositories by interval without cron / timers
+* Can be target for Webhooks supporting [github](https://developer.github.com/webhooks/), [gitlab](https://docs.gitlab.com/ee/user/project/integrations/webhooks.html) and others
+* Inline configuration of SSH deploy-keys and credentials 
+* Executes scripts and commands after updates
+
+
+## Build
+
+To build, the following requirements must be installed:
+* [rustc](https://www.rust-lang.org) >= 1.25
+* [cargo](https://github.com/rust-lang/cargo) >= 0.25
+
+After downloading the sources. the following command is used to build:
+```bash
+cargo build --release
+```
+
+The resulting binary will be placed in `target/release/pullomatic`.
+
+
 ## Configuration
 
 Each repository is configured in a single file which must be placed inside `/etc/pullomatic/`.
@@ -60,3 +85,9 @@ The following options are allowed in the configuration:
 | `credentials.passphrase` | `str` | | The passphrase used to unlock the private SSH KEY|
 | `interval.interval` | `str` | | The interval used to check the remote GIT repository for updates |
 | `on_change` | `str` | | A script executed every time the repository has changed |
+
+
+## Running
+
+Just execute the `pullomatic` binary on startup.
+
