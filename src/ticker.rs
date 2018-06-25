@@ -2,7 +2,7 @@ use repo::Repo;
 use std::sync::{Arc, atomic::Ordering};
 use std::sync::mpsc::SyncSender;
 use std::thread::{self, JoinHandle};
-use std::time::{Instant,Duration};
+use std::time::{Duration, Instant};
 
 pub fn ticker(repo: Arc<Repo>,
               producer: SyncSender<Arc<Repo>>) -> Option<JoinHandle<()>> {

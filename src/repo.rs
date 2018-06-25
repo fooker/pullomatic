@@ -128,7 +128,7 @@ impl Repo {
             if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                 if let Some(Credentials::Password(ref password)) = self.config.credentials {
                     return git2::Cred::userpass_plaintext(username.unwrap(),
-                                                      password.password.as_ref());
+                                                          password.password.as_ref());
                 }
             }
 
@@ -136,14 +136,14 @@ impl Repo {
         });
 
         println!("[{}] Fetching data from remote", self.name);
-        remote.fetch(&[&format!("+refs/heads/{}:refs/pullomatic", self.config.remote_branch)],
+        remote.fetch(&[&format!("+{}:refs/pullomatic", self.config.remote_ref())],
                      Some(git2::FetchOptions::new()
                              .prune(git2::FetchPrune::On)
                              .remote_callbacks(remote_cb)),
                      None)?;
         println!("[{}] Fetched data from remote", self.name);
 
-        repository.find_reference("HEAD")?;
+//        repository.find_reference("HEAD")?;
         let latest_obj = repository.revparse_single("HEAD").ok();
         let remote_obj = repository.revparse_single("refs/pullomatic")?;
 

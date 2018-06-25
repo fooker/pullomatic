@@ -13,6 +13,11 @@ serde-humantime = "0.1.1"
 
 ctrlc = { version = "3.0", features = ["termination"]}
 
-rouille = "2.1"
-
 crossbeam = "0.3.2"
+
+rouille = "2.1"
+rust-crypto = "0.2"
+hex = "0.3"
+json = "0.11"
+
+structopt = "0.2"

@@ -61,6 +61,35 @@ The check the repository regularly for changes, the configuration can contain a 
 If this section is present, it must contain a `interval` parameter, which specifies the interval to poll for changes.
 The format of this option allows to specify the interval in multiple ways like `30sec` or `5m` (See [here](https://docs.rs/humantime/1.1.1/humantime/fn.parse_duration.html) for more details).
 
+### Webhook
+To make updates as instant as possible, webhooks can be used to trigger update checks.
+The `webhook` section can be used to enable webhook support.
+If webhook is enabled in at least one repository, `pullomatic` will listen for incoming HTTP `POST` requests.
+
+The `provider` parameter must be set to enable support for one of the following supported  services:
+
+| Provider | Config Value | Remarks |
+| -------- | ------------ | ------- |
+| GitHub   | `github`     | Only `push` events are supported |
+| GitLab   | `gitlab`     | Only `push` events are supported |
+| Plain    | `plain`      ||
+ 
+#### GitHub
+If the GitHub provider is selected, a `secret` parameter can be given.
+The same value must be configured in the GitHub webhook configuration.
+ 
+The `check_branch` parameter controls if the branch in the event must match the `remote_branch` of the repository configuration (enabled by default).
+
+#### GitLab
+If the GitLab provider is selected, a `token` parameter can be given.
+The same value must be configured in the GitLab webhook configuration.
+  
+The `check_branch` parameter controls if the branch in the event must match the `remote_branch` of the repository configuration (enabled by default).
+
+#### Plain
+If The Plain provider is selected, every `POST` request will trigger an update check. 
+ 
+
 ### Script
 Each configuration can include a `on_change` hook option which allows to specify a script which is executed every time the repository has changed.
 The script is executed right after the updates has been checked out.
@@ -70,7 +99,6 @@ The script is executed using `sh -c` and therefor it can contain arbitrary shell
 Buf for complex scripts, it is recommended to store the script externally (maybe in the repository itself) and just call the script inside the hook.
 
 ### Overview
-
 The following options are allowed in the configuration:
 
 | Option | Type | Required | Description |
@@ -84,10 +112,33 @@ The following options are allowed in the configuration:
 | `credentials.public_key` | `str` | | The public SSH key matching the private SSH key |
 | `credentials.passphrase` | `str` | | The passphrase used to unlock the private SSH KEY|
 | `interval.interval` | `str` | | The interval used to check the remote GIT repository for updates |
+| `webhook.provider` | `str` | | Can be one of `github`, `gitlab` or `plain` |
+| `webhook.secret` | `str` | | Secret used to authenitcate GitLab webhook events (only valid for provider `github`) |
+| `webhook.token` | `str` | | Secret used to authenitcate GitLab webhook events (only valid for provider `gitlab`) |
+| `webhook.check_branch` | `bool` | | Checks if the event branch matches `remote_branch` (only valid for provider `github` or `gitlab`) |
 | `on_change` | `str` | | A script executed every time the repository has changed |
 
 
 ## Running
 
-Just execute the `pullomatic` binary on startup.
+Just execute the `pullomatic` binary.
 
+The configuration path can be changed by using `-c PATH` or `--config PATH`.
+If webhooks are used, the listening address can be changed using `-w ADDR:PORT` or `--webhook-listen ADDR:PORT` (defaults to `locahost:8000`).
+
+
+## Versioning
+
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/fooker/pullomatic/tags). 
+
+
+## Authors
+
+* **Dustin Frisch** - *Initial work* - [Dustin Frisch](https://github.com/fooker)
+
+See also the list of [contributors](https://github.com/fooker/pullomatic/contributors) who participated in this project.
+
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details

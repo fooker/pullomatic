@@ -1,11 +1,16 @@
 extern crate crossbeam;
+extern crate crypto;
 extern crate ctrlc;
 extern crate git2;
+extern crate hex;
+extern crate json;
 extern crate rouille;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_yaml;
 extern crate serde_humantime;
+extern crate serde_yaml;
+#[macro_use]
+extern crate structopt;
 
 
 use config::Config;
@@ -15,6 +20,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
 use std::sync::mpsc;
+use structopt::StructOpt;
 
 
 mod config;
@@ -23,11 +29,28 @@ mod ticker;
 mod webhook;
 
 
+#[derive(StructOpt, Debug)]
+#[structopt(name = "pullomatic")]
+struct Opts {
+    #[structopt(short = "c",
+                long = "config",
+                default_value = "/etc/pullomatic")]
+    config: String,
+
+    #[structopt(short = "w",
+                long = "webhook-listen",
+                default_value = "localhost:8000")]
+    webhook_listen: String,
+}
+
+
 pub static RUNNING: AtomicBool = AtomicBool::new(true);
 
 
 fn main() {
-    let config = Config::load("/etc/pullomatic");
+    let opts = Opts::from_args();
+
+    let config = Config::load(opts.config);
     let config = match config {
         Ok(config) => config,
         Err(err) => {
@@ -54,7 +77,7 @@ fn main() {
 
     // Start web server
     if repos.iter().any(|repo| repo.config().webhook.is_some()) {
-        handles.push(webhook::serve(repos.clone(), producer.clone()));
+        handles.push(webhook::serve(opts.webhook_listen.to_owned(), repos.clone(), producer.clone()));
     }
 
     // Ensure the initial producer is dropped, so the worker will stop if all other producers have died

@@ -1,13 +1,13 @@
+use serde_humantime;
+use serde_yaml;
+use std::collections::HashMap;
 use std::error;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
-use serde_yaml;
-use serde_humantime;
 
 
 #[derive(Debug)]
@@ -72,18 +72,27 @@ pub enum Credentials {
     Password(PasswordCredentials),
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct PlainWebhook {}
 
 #[derive(Clone, Debug, Deserialize)]
-pub enum WebhookProvider {
-    GitHub,
-    GitLab,
+pub struct GitHubWebhook {
+    pub secret: Option<String>,
+    pub check_branch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct Webhook {
-//    pub provider: WebhookProvider,
+pub struct GitLabWebhook {
+    pub token: Option<String>,
+    pub check_branch: Option<bool>,
+}
 
-    pub secret: Option<String>,
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "provider", rename_all = "lowercase")]
+pub enum Webhook {
+    Plain(PlainWebhook),
+    GitHub(GitHubWebhook),
+    GitLab(GitLabWebhook),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -136,5 +145,9 @@ impl Config {
         let config = serde_yaml::from_str(&input)?;
 
         return Ok(config);
+    }
+
+    pub fn remote_ref(&self) -> String {
+        return format!("refs/heads/{}", self.remote_branch);
     }
 }
