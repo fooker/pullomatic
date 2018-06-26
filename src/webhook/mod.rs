@@ -14,9 +14,9 @@ mod plain;
 fn handle(repo: &Repo, request: &Request) -> Result<bool, String> {
     if let Some(ref config) = repo.config().webhook {
         return match config {
-            Webhook::Plain(ref config) => plain::handle(&repo, config, request),
-            Webhook::GitHub(ref config) => github::handle(&repo, config, request),
-            Webhook::GitLab(ref config) => gitlab::handle(&repo, config, request),
+            &Webhook::Plain(ref config) => plain::handle(&repo, config, request),
+            &Webhook::GitHub(ref config) => github::handle(&repo, config, request),
+            &Webhook::GitLab(ref config) => gitlab::handle(&repo, config, request),
         };
     } else {
         return Err("Repository not configured for webhooks".to_owned());
