@@ -1,5 +1,7 @@
 `pullomatic` automates GIT repository synchronisation.
 
+[![Build Status](https://travis-ci.org/fooker/pullomatic.svg?branch=master)](https://travis-ci.org/fooker/pullomatic)
+
 Storing configuration or other application data in a GIT repository is a common practice.
 Usually custom scripts are used to pull updates from remote from time to time.
 `pullomatic` replaces these scripts with pure configuration.
