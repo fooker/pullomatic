@@ -9,6 +9,16 @@ rust:
 cache: cargo
 
 script:
-  - cargo build --verbose --all
+  - cargo build --release --verbose --all
   - cargo test --verbose --all
 
+deploy:
+  provider: releases
+  api_key:
+    secure: g7il0USz/mNv7MZxDslcZN0Hc9SupXyRxO80oFqGpDpRjV4PNWYfBlw3WLaydMfe2YtohnEVu5T/7esa6uIgYoOhzpjwkyox/9YzeJRKdj3uuLjv32gKctcU2KRFAPUysobX6Ez7cdP6+PIyi3XuqmPT0NHUp35yUMIqa+FMwbtHLnQ0hAimEIiOy6M5NbS9v1mniGt1Njl7+O96FmjX7ytNT9YalrjSb/k3hyaVsRTFXnQN/Ml6r2Fog0RH4YafDSwtqRFoV/iw2mp/1yY7R+PPd28cLPPtOnkbOyhDs64A2CeiVgKEeX36sLVR364H8S1RFvUTt62DjivzXPicGb4IDFs8aneiPf9c/49cwWQtw8BsgrzMNKSPJ/QgHBsTpb5m3N9sWttcyts6wcZLHPX+u7z2uWcYxPu3+G5X0gNzt1YTHSaxucy+21MsrcSIiFmBhpyO2/TlKuw4yHdxLGLrtESuXFB7kvwFYOAPiRKiyFwpt/8et4PMh0jVrW1B7ajam6GlAimdI3TfPlBC+qjZSVLznhV/VoRa9uX0GulhdWlKf2wABTJNrJrlIHF8BDshApPt1zCwHy7mgKSf2vljPQNmz+3dgVL7QvPeWVoygU26TXDa35krnOwSarmOn4PDnwjq8/el7h/D7pPhsRZcMQ99dPwS4ZlVZC7i0wY=
+  file: "target/release/pullomatic"
+  on:
+    repo: fooker/pullomatic
+    tags: true
+    rust: stable
+ 
