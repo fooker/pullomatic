@@ -4,20 +4,20 @@ version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
 
 [dependencies]
-git2 = { version = "0.7", git = "https://github.com/fooker/git2-rs.git" }
+git2 = "0.13.23"
 
 serde = "1.0"
 serde_derive = "1.0"
-serde_yaml = "0.7"
+serde_yaml = "0.8.21"
 serde-humantime = "0.1.1"
 
 ctrlc = { version = "3.0", features = ["termination"]}
 
-crossbeam = "0.3.2"
+crossbeam = "0.8.1"
 
-rouille = "2.1"
+rouille = "3.3.1"
 rust-crypto = "0.2"
-hex = "0.3"
-json = "0.11"
+hex = "0.4.3"
+json = "0.12.4"
 
-structopt = "0.2"
+structopt = "0.3.23"

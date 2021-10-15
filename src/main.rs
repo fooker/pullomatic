@@ -129,7 +129,7 @@ fn exec_hook(repo: Arc<Repo>) {
         crossbeam::scope(|scope| {
             if let Some(stdout) = stdout {
                 let stdout = BufReader::new(stdout);
-                scope.spawn(|| {
+                scope.spawn(|_| {
                     for line in stdout.lines() {
                         println!("[{}] {}", repo.name(), line.unwrap());
                     }
@@ -138,7 +138,7 @@ fn exec_hook(repo: Arc<Repo>) {
 
             if let Some(stderr) = stderr {
                 let stderr = BufReader::new(stderr);
-                scope.spawn(|| {
+                scope.spawn(|_| {
                     for line in stderr.lines() {
                         eprintln!("[{}] {}", repo.name(), line.unwrap());
                     }
