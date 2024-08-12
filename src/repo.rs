@@ -2,8 +2,8 @@ use config::{Config, Credentials};
 use git2;
 use std::error;
 use std::fmt;
-use std::fs;
-use std::io;
+use std::fs::{self, File};
+use std::io::{self, Read};
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -118,9 +118,19 @@ impl Repo {
 
             if allowed.contains(git2::CredentialType::SSH_MEMORY) {
                 if let Some(Credentials::SSH(ref ssh)) = self.config.credentials {
+                    let private_key = if ssh.private_key_path {
+                        let path = ssh.private_key.clone();
+                        let mut file = File::open(path).map_err(|_| git2::Error::from_str("Could not read credentials file"))?;
+                        let mut contents = String::new();
+                        file.read_to_string(&mut contents).map_err(|_| git2::Error::from_str("Could not read credentials file"))?;
+                        contents
+                    } else {
+                        ssh.private_key.clone()
+                    };
+
                     return git2::Cred::ssh_key_from_memory(username.unwrap(),
                                                            ssh.public_key.as_ref().map(String::as_ref),
-                                                           ssh.private_key.as_ref(),
+                                                           private_key.as_ref(),
                                                            ssh.passphrase.as_ref().map(String::as_ref));
                 }
             }

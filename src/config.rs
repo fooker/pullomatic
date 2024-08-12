@@ -55,6 +55,7 @@ pub struct SSHCredentials {
 
     pub public_key: Option<String>,
     pub private_key: String,
+    pub private_key_path: bool,
 
     pub passphrase: Option<String>,
 }
