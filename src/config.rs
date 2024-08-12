@@ -33,7 +33,7 @@ impl error::Error for ConfigError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             ConfigError::Parse(ref err) => Some(err),
             ConfigError::Io(ref err) => Some(err),

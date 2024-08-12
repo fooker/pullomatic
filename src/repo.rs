@@ -44,7 +44,7 @@ impl error::Error for UpdateError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             UpdateError::Git(ref err) => Some(err),
             UpdateError::Io(ref err) => Some(err),
