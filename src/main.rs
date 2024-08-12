@@ -101,7 +101,7 @@ fn main() {
             }
 
             Err(err) => {
-                eprintln!("[{}] Error while updating: {}", repo.name(), err.description());
+                eprintln!("[{}] Error while updating: {}", repo.name(), err);
             }
         }
     }
