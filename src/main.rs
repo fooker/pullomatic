@@ -126,7 +126,7 @@ fn exec_hook(repo: Arc<Repo>) {
 
         let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
 
-        crossbeam::scope(|scope| {
+        let c = crossbeam::scope(|scope| {
             if let Some(stdout) = stdout {
                 let stdout = BufReader::new(stdout);
                 scope.spawn(|_| {
@@ -145,6 +145,16 @@ fn exec_hook(repo: Arc<Repo>) {
                 });
             }
         });
+
+        if let Err(err) = c {
+            if let Some(string_err) = err.downcast_ref::<&str>() {
+                panic!("Failed to execute crossbeam: {}", string_err);
+            } else if let Some(string_err) = err.downcast_ref::<String>() {
+                panic!("Failed to execute crossbeam: {}", string_err);
+            } else {
+                panic!("Failed to execute crossbeam: unknown error");
+            }
+        }
 
         child.wait().expect("Failed to wait for script");
     }

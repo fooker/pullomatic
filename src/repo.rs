@@ -9,11 +9,13 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 
+#[derive(Debug)]
 struct RepoState {
     last_checked: Option<Instant>,
     last_changed: Option<Instant>,
 }
 
+#[derive(Debug)]
 pub struct Repo {
     name: String,
     config: Config,
