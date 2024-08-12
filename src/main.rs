@@ -9,13 +9,11 @@ extern crate rouille;
 extern crate serde_derive;
 extern crate serde_humantime;
 extern crate serde_yaml;
-#[macro_use]
 extern crate structopt;
 
 
 use config::Config;
 use repo::Repo;
-use std::error::Error;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};

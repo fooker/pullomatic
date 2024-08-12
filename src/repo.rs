@@ -39,13 +39,6 @@ impl fmt::Display for UpdateError {
 }
 
 impl error::Error for UpdateError {
-    fn description(&self) -> &str {
-        match *self {
-            UpdateError::Git(ref err) => err.description(),
-            UpdateError::Io(ref err) => err.description(),
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             UpdateError::Git(ref err) => Some(err),

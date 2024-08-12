@@ -2,7 +2,6 @@ use config::GitLabWebhook;
 use json;
 use repo::Repo;
 use rouille::Request;
-use std::error::Error;
 use std::io::Read;
 
 
