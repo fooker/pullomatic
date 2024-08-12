@@ -111,6 +111,7 @@ The following options are allowed in the configuration:
 | `credentials.username` | `str` | | The username to use if none is given by `remote_url` |
 | `credentials.password` | `str` | (✓) | The password used to authenticate (required for password authentication) |
 | `credentials.private_key` | `str` | (✓) | The private SSH key used to authenticate (required for SSH authentication) |
+| `credentials.private_key_path` | `bool` | | Specifies whether the `credentials.private_key` value represents a path to the key instead of the raw key itself |
 | `credentials.public_key` | `str` | | The public SSH key matching the private SSH key |
 | `credentials.passphrase` | `str` | | The passphrase used to unlock the private SSH KEY|
 | `interval.interval` | `str` | | The interval used to check the remote GIT repository for updates |
