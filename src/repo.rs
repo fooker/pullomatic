@@ -120,7 +120,7 @@ impl Repo {
                 if let Some(Credentials::SSH(ref ssh)) = self.config.credentials {
                     let private_key = if ssh.private_key_path {
                         let path = ssh.private_key.clone();
-                        let mut file = File::open(path).map_err(|_| git2::Error::from_str("Could not read credentials file"))?;
+                        let mut file = File::open(path).map_err(|_| git2::Error::from_str("Could not open credentials file"))?;
                         let mut contents = String::new();
                         file.read_to_string(&mut contents).map_err(|_| git2::Error::from_str("Could not read credentials file"))?;
                         contents
