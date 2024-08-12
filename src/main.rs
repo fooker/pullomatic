@@ -54,7 +54,7 @@ fn main() {
     let config = match config {
         Ok(config) => config,
         Err(err) => {
-            eprintln!("Failed to load config: {}", err.description());
+            eprintln!("Failed to load config: {}", err);
             return;
         }
     };
