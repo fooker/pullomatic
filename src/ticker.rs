@@ -1,11 +1,10 @@
-use repo::Repo;
-use std::sync::{Arc, atomic::Ordering};
+use crate::repo::Repo;
 use std::sync::mpsc::SyncSender;
+use std::sync::{Arc, atomic::Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-pub fn ticker(repo: Arc<Repo>,
-              producer: SyncSender<Arc<Repo>>) -> Option<JoinHandle<()>> {
+pub fn ticker(repo: Arc<Repo>, producer: SyncSender<Arc<Repo>>) -> Option<JoinHandle<()>> {
     if let Some(interval) = repo.config().interval.clone() {
         let producer = producer.clone();
 
@@ -13,7 +12,10 @@ pub fn ticker(repo: Arc<Repo>,
             use super::RUNNING;
             while RUNNING.load(Ordering::SeqCst) {
                 // Check if update is outstanding and send it as task to the worker
-                if repo.last_checked().map_or(true, |t| t + interval.interval < Instant::now()) {
+                if repo
+                    .last_checked()
+                    .map_or(true, |t| t + interval.interval < Instant::now())
+                {
                     producer.send(repo.clone()).unwrap();
                 }
 

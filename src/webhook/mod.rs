@@ -1,15 +1,13 @@
-use config::Webhook;
-use repo::Repo;
+use crate::config::Webhook;
+use crate::repo::Repo;
 use rouille::{Request, Response, Server};
-use std::sync::{Arc, atomic::Ordering};
 use std::sync::mpsc::SyncSender;
+use std::sync::{Arc, atomic::Ordering};
 use std::thread::{self, JoinHandle};
-
 
 mod github;
 mod gitlab;
 mod plain;
-
 
 fn handle(repo: &Repo, request: &Request) -> Result<bool, String> {
     if let Some(ref config) = repo.config().webhook {
@@ -23,10 +21,11 @@ fn handle(repo: &Repo, request: &Request) -> Result<bool, String> {
     }
 }
 
-
-pub fn serve(addr: String,
-             repos: Arc<Vec<Arc<Repo>>>,
-             producer: SyncSender<Arc<Repo>>) -> JoinHandle<()> {
+pub fn serve(
+    addr: String,
+    repos: Arc<Vec<Arc<Repo>>>,
+    producer: SyncSender<Arc<Repo>>,
+) -> JoinHandle<()> {
     return thread::spawn(move || {
         let server = Server::new(addr, move |request: &Request| {
             // Get the path without the leading slash
@@ -45,14 +44,14 @@ pub fn serve(addr: String,
                     }
 
                     Err(error) => {
-                        return Response::text(error)
-                                .with_status_code(400);
+                        return Response::text(error).with_status_code(400);
                     }
                 }
             } else {
                 return Response::empty_404();
             }
-        }).expect("Failed to start server");
+        })
+        .expect("Failed to start server");
 
         use super::RUNNING;
         while RUNNING.load(Ordering::SeqCst) {

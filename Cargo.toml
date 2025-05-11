@@ -3,22 +3,22 @@ name = "pullomatic"
 version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
 
+edition = "2024"
+
 [dependencies]
 git2 = "0.20"
 
-serde = "1.0"
-serde_derive = "1.0"
-serde_yaml = "0.9"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_yaml = "0.9.33"
 serde-humantime = "0.1.1"
 
 ctrlc = { version = "3.0", features = ["termination"]}
 
 crossbeam = "0.8.1"
 
-rouille = "3.3.1"
+rouille = "3.6.2"
 rust-crypto = "0.2"
 hex = "0.4.3"
 json = "0.12.4"
 
-structopt = "0.3.23"
-rustc-serialize = ">=0.3.25"
+clap = { version = "4.5.37", features = ["derive", "color"]}

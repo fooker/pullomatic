@@ -1,9 +1,8 @@
-use config::GitLabWebhook;
+use crate::config::GitLabWebhook;
+use crate::repo::Repo;
 use json;
-use repo::Repo;
 use rouille::Request;
 use std::io::Read;
-
 
 pub fn handle(repo: &Repo, config: &GitLabWebhook, request: &Request) -> Result<bool, String> {
     if request.method() != "POST" {
@@ -12,7 +11,12 @@ pub fn handle(repo: &Repo, config: &GitLabWebhook, request: &Request) -> Result<
 
     // Read the whole body
     let mut body = String::new();
-    request.data().unwrap().take(1 * 1024 * 1024).read_to_string(&mut body).unwrap();
+    request
+        .data()
+        .unwrap()
+        .take(1 * 1024 * 1024)
+        .read_to_string(&mut body)
+        .unwrap();
 
     // Check if the token matches
     if let Some(ref token) = config.token {
@@ -22,7 +26,9 @@ pub fn handle(repo: &Repo, config: &GitLabWebhook, request: &Request) -> Result<
     }
 
     // Only allow 'push' or 'ping' events
-    let event = request.header("X-Gitlab-Event").ok_or("Not a GitLab webhook request")?;
+    let event = request
+        .header("X-Gitlab-Event")
+        .ok_or("Not a GitLab webhook request")?;
     println!("[{}] Got GitLab event: {}", repo.name(), event);
     if event != "Push Hook" && event != "Push Event" {
         return Err(format!("Event not supported: {}", event));
@@ -33,8 +39,9 @@ pub fn handle(repo: &Repo, config: &GitLabWebhook, request: &Request) -> Result<
 
     // Check if push is for our remote branch
     println!("[{}] Got push event for '{}'", repo.name(), payload["ref"]);
-    if config.check_branch.unwrap_or(true) &&
-            payload["ref"].as_str() != Some(&repo.config().remote_ref()) {
+    if config.check_branch.unwrap_or(true)
+        && payload["ref"].as_str() != Some(&repo.config().remote_ref())
+    {
         return Ok(false);
     }
 

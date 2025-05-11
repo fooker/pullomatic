@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use serde_humantime;
 use serde_yaml;
 use std::collections::HashMap;
@@ -8,7 +9,6 @@ use std::io;
 use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
-
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -35,11 +35,15 @@ impl error::Error for ConfigError {
 }
 
 impl From<serde_yaml::Error> for ConfigError {
-    fn from(err: serde_yaml::Error) -> Self { ConfigError::Parse(err) }
+    fn from(err: serde_yaml::Error) -> Self {
+        ConfigError::Parse(err)
+    }
 }
 
 impl From<io::Error> for ConfigError {
-    fn from(err: io::Error) -> Self { ConfigError::Io(err) }
+    fn from(err: io::Error) -> Self {
+        ConfigError::Io(err)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -107,11 +111,13 @@ pub struct Config {
 
     pub interval: Option<Interval>,
     pub webhook: Option<Webhook>,
-
 }
 
 impl Config {
-    pub fn load<P>(path: P) -> Result<HashMap<String, Self>, ConfigError> where P: AsRef<Path> {
+    pub fn load<P>(path: P) -> Result<HashMap<String, Self>, ConfigError>
+    where
+        P: AsRef<Path>,
+    {
         let mut configs = HashMap::new();
 
         for entry in fs::read_dir(path)? {
@@ -119,21 +125,24 @@ impl Config {
             if entry.file_type()?.is_file() {
                 let path = entry.path();
 
-                configs.insert(path.file_name().unwrap().to_str().unwrap().to_owned(),
-                               Self::load_config(path)?);
+                configs.insert(
+                    path.file_name().unwrap().to_str().unwrap().to_owned(),
+                    Self::load_config(path)?,
+                );
             }
         }
 
         return Ok(configs);
     }
 
-    fn load_config<P>(path: P) -> Result<Self, ConfigError> where P: AsRef<Path> {
+    fn load_config<P>(path: P) -> Result<Self, ConfigError>
+    where
+        P: AsRef<Path>,
+    {
         // FIXME: Specify interval as string (i.e. "5m")
 
         let mut input = String::new();
-        fs::File::open(&path).and_then(|mut f| {
-            f.read_to_string(&mut input)
-        })?;
+        fs::File::open(&path).and_then(|mut f| f.read_to_string(&mut input))?;
 
         let config = serde_yaml::from_str(&input)?;
 
