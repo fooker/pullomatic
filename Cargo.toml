@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
 
 [dependencies]
-git2 = "0.18"
+git2 = "0.20"
 
 serde = "1.0"
 serde_derive = "1.0"
