@@ -1,9 +1,7 @@
 use crate::config::{Config, Credentials};
+use anyhow::Result;
 use git2;
-use std::error;
-use std::fmt;
 use std::fs;
-use std::io;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -22,42 +20,6 @@ pub struct Repo {
     state: Mutex<RepoState>,
 }
 
-#[derive(Debug)]
-pub enum UpdateError {
-    Git(git2::Error),
-    Io(io::Error),
-}
-
-impl fmt::Display for UpdateError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match *self {
-            UpdateError::Git(ref err) => write!(f, "GIT error: {}", err),
-            UpdateError::Io(ref err) => write!(f, "IO error: {}", err),
-        }
-    }
-}
-
-impl error::Error for UpdateError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            UpdateError::Git(ref err) => Some(err),
-            UpdateError::Io(ref err) => Some(err),
-        }
-    }
-}
-
-impl From<git2::Error> for UpdateError {
-    fn from(err: git2::Error) -> Self {
-        UpdateError::Git(err)
-    }
-}
-
-impl From<io::Error> for UpdateError {
-    fn from(err: io::Error) -> Self {
-        UpdateError::Io(err)
-    }
-}
-
 impl Repo {
     pub fn new(name: String, config: Config) -> Self {
         return Self {
@@ -71,10 +33,10 @@ impl Repo {
         };
     }
 
-    pub fn update(&self) -> Result<bool, UpdateError> {
+    pub fn update(&self) -> Result<bool> {
         let now = Some(Instant::now());
 
-        self.state.lock().unwrap().last_checked = now;
+        self.state.lock().expect("Lock poisoned").last_checked = now;
 
         let path = Path::new(&self.config.path);
 

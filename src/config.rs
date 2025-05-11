@@ -1,50 +1,11 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_humantime;
 use serde_yaml;
 use std::collections::HashMap;
-use std::error;
-use std::fmt;
 use std::fs;
-use std::io;
-use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
-
-#[derive(Debug)]
-pub enum ConfigError {
-    Parse(serde_yaml::Error),
-    Io(io::Error),
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match *self {
-            ConfigError::Parse(ref err) => write!(f, "GIT error: {}", err),
-            ConfigError::Io(ref err) => write!(f, "IO error: {}", err),
-        }
-    }
-}
-
-impl error::Error for ConfigError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            ConfigError::Parse(ref err) => Some(err),
-            ConfigError::Io(ref err) => Some(err),
-        }
-    }
-}
-
-impl From<serde_yaml::Error> for ConfigError {
-    fn from(err: serde_yaml::Error) -> Self {
-        ConfigError::Parse(err)
-    }
-}
-
-impl From<io::Error> for ConfigError {
-    fn from(err: io::Error) -> Self {
-        ConfigError::Io(err)
-    }
-}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct SSHCredentials {
@@ -114,37 +75,35 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load<P>(path: P) -> Result<HashMap<String, Self>, ConfigError>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn load(path: &Path) -> Result<HashMap<String, Self>> {
         let mut configs = HashMap::new();
 
-        for entry in fs::read_dir(path)? {
+        for entry in fs::read_dir(path)
+            .with_context(|| format!("Failed to read config directory: {}", path.display()))?
+        {
             let entry = entry?;
             if entry.file_type()?.is_file() {
                 let path = entry.path();
 
-                configs.insert(
-                    path.file_name().unwrap().to_str().unwrap().to_owned(),
-                    Self::load_config(path)?,
-                );
+                let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+
+                let config = Self::load_config(&path)?;
+
+                configs.insert(name, config);
             }
         }
 
         return Ok(configs);
     }
 
-    fn load_config<P>(path: P) -> Result<Self, ConfigError>
-    where
-        P: AsRef<Path>,
-    {
+    fn load_config(path: &Path) -> Result<Self> {
         // FIXME: Specify interval as string (i.e. "5m")
 
-        let mut input = String::new();
-        fs::File::open(&path).and_then(|mut f| f.read_to_string(&mut input))?;
+        let input = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
-        let config = serde_yaml::from_str(&input)?;
+        let config = serde_yaml::from_str(&input)
+            .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
 
         return Ok(config);
     }
