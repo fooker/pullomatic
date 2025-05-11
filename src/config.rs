@@ -26,14 +26,7 @@ impl fmt::Display for ConfigError {
 }
 
 impl error::Error for ConfigError {
-    fn description(&self) -> &str {
-        match *self {
-            ConfigError::Parse(ref err) => err.description(),
-            ConfigError::Io(ref err) => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             ConfigError::Parse(ref err) => Some(err),
             ConfigError::Io(ref err) => Some(err),

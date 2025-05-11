@@ -9,13 +9,11 @@ extern crate rouille;
 extern crate serde_derive;
 extern crate serde_humantime;
 extern crate serde_yaml;
-#[macro_use]
 extern crate structopt;
 
 
 use config::Config;
 use repo::Repo;
-use std::error::Error;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
@@ -54,7 +52,7 @@ fn main() {
     let config = match config {
         Ok(config) => config,
         Err(err) => {
-            eprintln!("Failed to load config: {}", err.description());
+            eprintln!("Failed to load config: {}", err);
             return;
         }
     };
@@ -101,7 +99,7 @@ fn main() {
             }
 
             Err(err) => {
-                eprintln!("[{}] Error while updating: {}", repo.name(), err.description());
+                eprintln!("[{}] Error while updating: {}", repo.name(), err);
             }
         }
     }
@@ -126,7 +124,7 @@ fn exec_hook(repo: Arc<Repo>) {
 
         let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
 
-        crossbeam::scope(|scope| {
+        let c = crossbeam::scope(|scope| {
             if let Some(stdout) = stdout {
                 let stdout = BufReader::new(stdout);
                 scope.spawn(|_| {
@@ -145,6 +143,16 @@ fn exec_hook(repo: Arc<Repo>) {
                 });
             }
         });
+
+        if let Err(err) = c {
+            if let Some(string_err) = err.downcast_ref::<&str>() {
+                panic!("Failed to execute crossbeam: {}", string_err);
+            } else if let Some(string_err) = err.downcast_ref::<String>() {
+                panic!("Failed to execute crossbeam: {}", string_err);
+            } else {
+                panic!("Failed to execute crossbeam: unknown error");
+            }
+        }
 
         child.wait().expect("Failed to wait for script");
     }

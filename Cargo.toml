@@ -21,3 +21,4 @@ hex = "0.4.3"
 json = "0.12.4"
 
 structopt = "0.3.23"
+rustc-serialize = ">=0.3.25"

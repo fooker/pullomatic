@@ -9,11 +9,13 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 
+#[derive(Debug)]
 struct RepoState {
     last_checked: Option<Instant>,
     last_changed: Option<Instant>,
 }
 
+#[derive(Debug)]
 pub struct Repo {
     name: String,
     config: Config,
@@ -37,14 +39,7 @@ impl fmt::Display for UpdateError {
 }
 
 impl error::Error for UpdateError {
-    fn description(&self) -> &str {
-        match *self {
-            UpdateError::Git(ref err) => err.description(),
-            UpdateError::Io(ref err) => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             UpdateError::Git(ref err) => Some(err),
             UpdateError::Io(ref err) => Some(err),

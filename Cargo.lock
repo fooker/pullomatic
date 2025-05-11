@@ -895,6 +895,7 @@ dependencies = [
  "json",
  "rouille",
  "rust-crypto",
+ "rustc-serialize",
  "serde",
  "serde-humantime",
  "serde_derive",

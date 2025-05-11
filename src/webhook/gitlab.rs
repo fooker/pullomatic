@@ -2,7 +2,6 @@ use config::GitLabWebhook;
 use json;
 use repo::Repo;
 use rouille::Request;
-use std::error::Error;
 use std::io::Read;
 
 
@@ -30,7 +29,7 @@ pub fn handle(repo: &Repo, config: &GitLabWebhook, request: &Request) -> Result<
     }
 
     // Parse the payload
-    let payload = json::parse(&body).map_err(|e| format!("Invalid payload: {}", e.description()))?;
+    let payload = json::parse(&body).map_err(|e| format!("Invalid payload: {}", e))?;
 
     // Check if push is for our remote branch
     println!("[{}] Got push event for '{}'", repo.name(), payload["ref"]);
