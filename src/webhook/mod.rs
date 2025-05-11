@@ -4,6 +4,7 @@ use rouille::{Request, Response, Server};
 use std::sync::mpsc::SyncSender;
 use std::sync::{Arc, atomic::Ordering};
 use std::thread::{self, JoinHandle};
+use tracing::info_span;
 
 mod github;
 mod gitlab;
@@ -28,27 +29,31 @@ pub fn serve(
 ) -> JoinHandle<()> {
     return thread::spawn(move || {
         let server = Server::new(addr, move |request: &Request| {
+            let _request = info_span!("Handle webhook request").entered();
+
             // Get the path without the leading slash
             let path = &request.url()[1..];
 
             // Try find the repo this the path interpreted as name
             let repo = repos.iter().find(move |repo| repo.name() == path).cloned();
-            if let Some(repo) = repo {
-                match handle(&repo, request) {
-                    Ok(trigger) => {
-                        if trigger {
-                            producer.send(repo).unwrap();
-                        }
-
-                        return Response::empty_204();
-                    }
-
-                    Err(error) => {
-                        return Response::text(error).with_status_code(400);
-                    }
-                }
-            } else {
+            let Some(repo) = repo else {
                 return Response::empty_404();
+            };
+
+            let _repo = info_span!("Handle webhook request", repo = repo.name()).entered();
+
+            match handle(&repo, request) {
+                Ok(trigger) => {
+                    if trigger {
+                        producer.send(repo).unwrap();
+                    }
+
+                    return Response::empty_204();
+                }
+
+                Err(error) => {
+                    return Response::text(error).with_status_code(400);
+                }
             }
         })
         .expect("Failed to start server");

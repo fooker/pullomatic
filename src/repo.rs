@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
+use tracing::{debug, info, trace};
 
 #[derive(Debug)]
 struct RepoState {
@@ -42,12 +43,12 @@ impl Repo {
 
         let repository: git2::Repository;
         if path.exists() {
-            println!("[{}] Using existing repository", self.name);
+            debug!("Using existing repository");
 
             // Open the repo or give up
             repository = git2::Repository::open(path)?;
         } else {
-            println!("[{}] Initialized new repository", self.name);
+            debug!("Initialized new repository");
 
             // Create the directory and init the repo
             fs::create_dir_all(path)?;
@@ -58,9 +59,9 @@ impl Repo {
 
         let mut remote_cb = git2::RemoteCallbacks::new();
         remote_cb.credentials(|url, username, allowed| {
-            println!("[{}] cred: url = {:?}", self.name, url);
-            println!("[{}] cred: username = {:?}", self.name, username);
-            println!("[{}] cred: allowed = {:?}", self.name, allowed);
+            trace!("cred: url = {:?}", url);
+            trace!("cred: username = {:?}", username);
+            trace!("cred: allowed = {:?}", allowed);
 
             if allowed.contains(git2::CredentialType::USERNAME) {
                 match self.config.credentials {
@@ -103,7 +104,7 @@ impl Repo {
             return Err(git2::Error::from_str("Unsupported authentication"));
         });
 
-        println!("[{}] Fetching data from remote", self.name);
+        debug!("Fetching data from remote");
         remote.fetch(
             &[&format!("+{}:refs/pullomatic", self.config.remote_ref())],
             Some(
@@ -113,7 +114,7 @@ impl Repo {
             ),
             None,
         )?;
-        println!("[{}] Fetched data from remote", self.name);
+        debug!("Fetched data from remote");
 
         //        repository.find_reference("HEAD")?;
         let latest_obj = repository.revparse_single("HEAD").ok();
@@ -121,7 +122,7 @@ impl Repo {
 
         if let Some(ref latest_obj) = latest_obj {
             if latest_obj.id() == remote_obj.id() {
-                println!("[{}] Already up to date", self.name);
+                debug!("Already up to date");
                 return Ok(false);
             }
         }
@@ -136,7 +137,7 @@ impl Repo {
             ),
         )?;
 
-        println!("[{}] Updated to {}", self.name, remote_obj.id());
+        info!("Updated to {}", remote_obj.id());
         self.state.lock().unwrap().last_changed = now;
 
         return Ok(true);

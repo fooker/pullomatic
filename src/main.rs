@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
+use tracing::{Level, error, info, info_span, trace};
 
 mod config;
 mod repo;
@@ -21,12 +22,24 @@ struct Args {
 
     #[arg(short = 'w', long = "webhook-listen", default_value = "localhost:8000")]
     webhook_listen: String,
+
+    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count, default_value = "0")]
+    verbose: u8,
 }
 
 pub static RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(match args.verbose {
+            0 => Level::WARN,
+            1 => Level::INFO,
+            2 => Level::DEBUG,
+            _ => Level::TRACE,
+        })
+        .init();
 
     let config = Config::load(&args.config)
         .with_context(|| format!("Failed to load config from {}", args.config.display()))?;
@@ -66,16 +79,20 @@ fn main() -> Result<()> {
 
     // Handle Signals
     ctrlc::set_handler(move || {
-        println!("Terminating...");
+        info!("Terminating...");
         RUNNING.store(false, Ordering::SeqCst);
     })
     .expect("Error setting Ctrl-C handler");
 
     // Handle updates
     for repo in consumer {
+        let span = info_span!("Update repo", repo = repo.name()).entered();
+
         if let Err(err) = precess(repo.clone()) {
-            eprintln!("[{}] Error while updating: {}", repo.name(), err);
+            error!("Error while updating: {}", err);
         }
+
+        span.exit();
     }
 
     for handle in handles {
@@ -115,7 +132,7 @@ fn precess(repo: Arc<Repo>) -> Result<()> {
             let stdout = BufReader::new(stdout);
             scope.spawn(|_| {
                 for line in stdout.lines() {
-                    println!("[{}] {}", repo.name(), line.unwrap());
+                    trace!("> {}", line.unwrap());
                 }
             });
         }
@@ -124,7 +141,7 @@ fn precess(repo: Arc<Repo>) -> Result<()> {
             let stderr = BufReader::new(stderr);
             scope.spawn(|_| {
                 for line in stderr.lines() {
-                    eprintln!("[{}] {}", repo.name(), line.unwrap());
+                    trace!("! {}", line.unwrap());
                 }
             });
         }

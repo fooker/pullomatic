@@ -7,6 +7,7 @@ use hex;
 use json;
 use rouille::Request;
 use std::io::Read;
+use tracing::{debug, trace};
 
 pub fn handle(repo: &Repo, config: &GitHubWebhook, request: &Request) -> Result<bool, String> {
     if request.method() != "POST" {
@@ -40,7 +41,7 @@ pub fn handle(repo: &Repo, config: &GitHubWebhook, request: &Request) -> Result<
     let event = request
         .header("X-GitHub-Event")
         .ok_or("Not a GitHub webhook request")?;
-    println!("[{}] Got GitHub event: {}", repo.name(), event);
+    trace!("Got GitHub event: {}", event);
     if event == "ping" {
         return Ok(false);
     } else if event != "push" {
@@ -51,13 +52,13 @@ pub fn handle(repo: &Repo, config: &GitHubWebhook, request: &Request) -> Result<
     let payload = json::parse(&body).map_err(|e| format!("Invalid payload: {}", e))?;
 
     // Check if push is for our remote branch
-    println!("[{}] Got push event for '{}'", repo.name(), payload["ref"]);
+    trace!("Got push event for '{}'", payload["ref"]);
     if config.check_branch.unwrap_or(true)
         && payload["ref"].as_str() != Some(&repo.config().remote_ref())
     {
         return Ok(false);
     }
 
-    println!("[{}] Trigger update from hook", repo.name());
+    debug!("Trigger update from hook");
     return Ok(true);
 }
