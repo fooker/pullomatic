@@ -1,17 +1,18 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use config::Config;
+use futures::future::FutureExt;
 use repo::Repo;
-use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::sync::mpsc;
-use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
-use tracing::{Level, error, info, info_span, trace};
+use std::process::Stdio;
+use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
+use tracing::{Instrument, Level, debug, error, info_span, trace};
 
 mod config;
 mod repo;
-mod ticker;
 mod webhook;
 
 #[derive(Parser, Debug)]
@@ -27,9 +28,8 @@ struct Args {
     verbose: u8,
 }
 
-pub static RUNNING: AtomicBool = AtomicBool::new(true);
-
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::FmtSubscriber::builder()
@@ -42,122 +42,143 @@ fn main() -> Result<()> {
         .init();
 
     let config = Config::load(&args.config)
+        .await
         .with_context(|| format!("Failed to load config from {}", args.config.display()))?;
 
-    let repos: Arc<Vec<Arc<Repo>>> = Arc::new(
-        config
-            .into_iter()
-            .map(|(name, config)| Arc::new(Repo::new(name, config)))
-            .collect(),
-    );
+    let repos: Vec<Arc<Repo>> = config
+        .into_iter()
+        .map(|(name, config)| Arc::new(Repo::new(name, config)))
+        .collect();
 
-    // Create worker queue
-    let (producer, consumer) = mpsc::sync_channel(0);
+    // A single global worker queue to serialize all update checks
+    let (producer, mut consumer) = tokio::sync::mpsc::channel(repos.len() + 1);
 
-    // Handles for background tasks
-    let mut handles = vec![];
+    let running = CancellationToken::new();
+    let tasks = TaskTracker::new();
 
-    // Start periodic update tasks
-    handles.extend(
-        repos
-            .iter()
-            .cloned()
-            .filter_map(|repo| ticker::ticker(repo, producer.clone())),
-    );
+    // Create periodic update tasks for all repos
+    for repo in repos.iter().cloned() {
+        let Some(interval) = &repo.config.interval else {
+            continue;
+        };
+
+        let interval = interval.interval;
+
+        let producer = producer.clone();
+        let running = running.clone();
+
+        tasks.spawn(async move {
+            let mut interval = tokio::time::interval(interval);
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        producer.send(repo.clone()).await.expect("Receiver closed");
+                    }
+
+                    _ = running.cancelled() => {
+                        break;
+                    }
+                }
+            }
+        });
+    }
 
     // Start web server
-    if repos.iter().any(|repo| repo.config().webhook.is_some()) {
-        handles.push(webhook::serve(
-            args.webhook_listen.to_owned(),
-            repos.clone(),
-            producer.clone(),
-        ));
-    }
+    tasks.spawn(webhook::serve(
+        args.webhook_listen,
+        running.clone(),
+        producer.clone(),
+        &repos,
+    ));
 
-    // Ensure the initial producer is dropped, so the worker will stop if all other producers have died
-    drop(producer);
+    // Listen for shutdown signal
+    tasks.spawn({
+        let running = running.clone();
 
-    // Handle Signals
-    ctrlc::set_handler(move || {
-        info!("Terminating...");
-        RUNNING.store(false, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
-
-    // Handle updates
-    for repo in consumer {
-        let span = info_span!("Update repo", repo = repo.name()).entered();
-
-        if let Err(err) = precess(repo.clone()) {
-            error!("Error while updating: {}", err);
+        async move {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("Failed to listen for Ctrl+C");
+            debug!("Received Ctrl+C. Shutting down.");
+            running.cancel();
         }
+    });
 
-        span.exit();
+    // Handle refresh tasks from queue
+    loop {
+        tokio::select! {
+            _ = running.cancelled() => {
+                debug!("Shutting down");
+                break;
+            }
+
+            repo = consumer.recv() => {
+                let Some(repo) = repo else {
+                    break;
+                };
+
+                let task = precess(repo.clone());
+                let task = task.map(|result| match result {
+                    Ok(_) => { trace!("Update successful"); }
+                    Err(err) => { error!("Error while updating: {:#}", err); }
+                });
+                let task = task.instrument(info_span!("Update repo", repo = repo.name));
+
+                tasks.spawn(task);
+            }
+        }
     }
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
+    tasks.close();
+    tasks.wait().await;
 
     return Ok(());
 }
 
-fn precess(repo: Arc<Repo>) -> Result<()> {
+async fn precess(repo: Arc<Repo>) -> Result<()> {
     let changed = repo
         .update()
-        .with_context(|| format!("Error while update {}", repo.name()))?;
+        .await
+        .with_context(|| format!("Error while update {}", repo.name))?;
 
     if !changed {
+        trace!("No changes");
         return Ok(());
     }
 
-    let Some(ref script) = repo.config().on_change else {
+    let Some(ref script) = repo.config.on_change else {
+        trace!("No script to execute");
         return Ok(());
     };
 
-    let mut child = Command::new("sh")
+    let mut child = tokio::process::Command::new("sh")
         .arg("-c")
         .arg(script)
-        .current_dir(&repo.config().path)
+        .current_dir(&repo.config.path)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .context("Failed to spawn script")?;
 
-    let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
+    let mut stdout = BufReader::new(child.stdout.take().expect("Failed to take stdout")).lines();
+    let mut stderr = BufReader::new(child.stderr.take().expect("Failed to take stderr")).lines();
 
-    let c = crossbeam::scope(|scope| {
-        if let Some(stdout) = stdout {
-            let stdout = BufReader::new(stdout);
-            scope.spawn(|_| {
-                for line in stdout.lines() {
-                    trace!("> {}", line.unwrap());
-                }
-            });
-        }
+    loop {
+        tokio::select! {
+            Ok(Some(line)) = stdout.next_line() => {
+                trace!("> {}", line);
+            }
 
-        if let Some(stderr) = stderr {
-            let stderr = BufReader::new(stderr);
-            scope.spawn(|_| {
-                for line in stderr.lines() {
-                    trace!("! {}", line.unwrap());
-                }
-            });
-        }
-    });
+            Ok(Some(line)) = stderr.next_line() => {
+                trace!("! {}", line);
+            }
 
-    if let Err(err) = c {
-        if let Some(string_err) = err.downcast_ref::<&str>() {
-            panic!("Failed to execute crossbeam: {}", string_err);
-        } else if let Some(string_err) = err.downcast_ref::<String>() {
-            panic!("Failed to execute crossbeam: {}", string_err);
-        } else {
-            panic!("Failed to execute crossbeam: unknown error");
+            else => break,
         }
     }
 
-    child.wait().context("Failed to wait for script")?;
+    child.wait().await.context("Failed to wait for script")?;
 
     return Ok(());
 }

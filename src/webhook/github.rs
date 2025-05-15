@@ -1,64 +1,83 @@
 use crate::config::GitHubWebhook;
 use crate::repo::Repo;
+use anyhow::Result;
+use axum::Router;
+use axum::extract::State;
+use axum::http::{HeaderMap, StatusCode};
+use axum::routing::post;
 use crypto::hmac::Hmac;
-use crypto::mac::Mac;
+use crypto::mac::{Mac, MacResult};
 use crypto::sha1::Sha1;
 use hex;
 use json;
-use rouille::Request;
-use std::io::Read;
+use std::sync::Arc;
 use tracing::{debug, trace};
 
-pub fn handle(repo: &Repo, config: &GitHubWebhook, request: &Request) -> Result<bool, String> {
-    if request.method() != "POST" {
-        return Err("Only POST ist allowed".to_owned());
-    }
+pub(super) fn router(
+    config: GitHubWebhook,
+    producer: tokio::sync::mpsc::Sender<Arc<Repo>>,
+    repo: Arc<Repo>,
+) -> Router {
+    return Router::<_>::new()
+        .route("/", post(handle))
+        .with_state((config, producer, repo));
+}
 
-    // Read the whole body
-    let mut body = String::new();
-    request
-        .data()
-        .unwrap()
-        .take(1 * 1024 * 1024)
-        .read_to_string(&mut body)
-        .unwrap();
-
+async fn handle(
+    State((config, producer, repo)): State<(
+        GitHubWebhook,
+        tokio::sync::mpsc::Sender<Arc<Repo>>,
+        Arc<Repo>,
+    )>,
+    headers: HeaderMap,
+    body: String,
+) -> Result<(), (StatusCode, &'static str)> {
     // Check if the signature matches the secret
     if let Some(ref secret) = config.secret {
-        let signature = request
-            .header("X-Hub-Signature")
-            .ok_or("Signature missing")?;
+        let signature = headers
+            .get("X-Hub-Signature")
+            .ok_or((StatusCode::UNAUTHORIZED, "Signature missing"))?
+            .as_bytes();
+        let signature = signature
+            .strip_prefix(b"sha1=")
+            .ok_or((StatusCode::UNAUTHORIZED, "Signature prefix missing"))?;
+        let signature =
+            hex::decode(signature).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid signature"))?;
+        let signature = MacResult::new_from_owned(signature);
 
         let mut hmac = Hmac::new(Sha1::new(), secret.as_bytes());
         hmac.input(body.as_bytes());
 
-        if signature != format!("sha1={}", hex::encode(hmac.result().code())) {
-            return Err("Signature mismatch".to_owned());
+        if signature != hmac.result() {
+            return Err((StatusCode::UNAUTHORIZED, "Signature mismatch"));
         }
     }
 
     // Only allow 'push' or 'ping' events
-    let event = request
-        .header("X-GitHub-Event")
-        .ok_or("Not a GitHub webhook request")?;
-    trace!("Got GitHub event: {}", event);
+    let event = headers
+        .get("X-GitHub-Event")
+        .ok_or((StatusCode::BAD_REQUEST, "Not a GitHub webhook request"))?;
+    trace!("Got GitHub event: {:?}", event);
+
     if event == "ping" {
-        return Ok(false);
+        return Ok(());
     } else if event != "push" {
-        return Err(format!("Event not supported: {}", event));
+        return Err((StatusCode::BAD_REQUEST, "Event not supported"));
     }
 
     // Parse the payload
-    let payload = json::parse(&body).map_err(|e| format!("Invalid payload: {}", e))?;
+    let payload = json::parse(&body).map_err(|_| (StatusCode::BAD_REQUEST, "Invalid payload"))?;
 
     // Check if push is for our remote branch
     trace!("Got push event for '{}'", payload["ref"]);
     if config.check_branch.unwrap_or(true)
-        && payload["ref"].as_str() != Some(&repo.config().remote_ref())
+        && payload["ref"].as_str() != Some(&repo.config.remote_ref())
     {
-        return Ok(false);
+        return Ok(());
     }
 
     debug!("Trigger update from hook");
-    return Ok(true);
+    producer.send(repo.clone()).await.expect("Receiver dropped");
+
+    return Ok(());
 }

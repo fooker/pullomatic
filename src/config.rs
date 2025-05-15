@@ -3,8 +3,7 @@ use serde::Deserialize;
 use serde_humantime;
 use serde_yaml;
 use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -61,7 +60,7 @@ pub struct Interval {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub path: String,
+    pub path: PathBuf,
 
     pub remote_url: String,
     pub remote_branch: String,
@@ -75,31 +74,38 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load(path: &Path) -> Result<HashMap<String, Self>> {
+    pub async fn load(path: &Path) -> Result<HashMap<String, Self>> {
         let mut configs = HashMap::new();
 
-        for entry in fs::read_dir(path)
-            .with_context(|| format!("Failed to read config directory: {}", path.display()))?
-        {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                let path = entry.path();
+        if !path.exists() {
+            anyhow::bail!("Config directory does not exist: {}", path.display());
+        }
 
-                let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+        let mut dir = tokio::fs::read_dir(path)
+            .await
+            .with_context(|| format!("Failed to read config directory: {}", path.display()))?;
 
-                let config = Self::load_config(&path)?;
+        while let Some(entry) = dir.next_entry().await? {
+            let path = entry.path();
 
-                configs.insert(name, config);
-            }
+            // TODO: Can we do this better?
+            let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+
+            let config = Self::load_config(&path)
+                .await
+                .with_context(|| format!("Failed to load config file: {}", path.display()))?;
+
+            configs.insert(name, config);
         }
 
         return Ok(configs);
     }
 
-    fn load_config(path: &Path) -> Result<Self> {
+    async fn load_config(path: &Path) -> Result<Self> {
         // FIXME: Specify interval as string (i.e. "5m")
 
-        let input = fs::read_to_string(&path)
+        let input = tokio::fs::read_to_string(&path)
+            .await
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
         let config = serde_yaml::from_str(&input)

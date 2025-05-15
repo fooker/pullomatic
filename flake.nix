@@ -50,9 +50,12 @@
 
           buildInputs = with pkgs; [
             openssl
+            libgit2
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             pkgs.libiconv
           ];
+
+          LIBGIT2_NO_VENDOR = 1;
         };
       in
       {

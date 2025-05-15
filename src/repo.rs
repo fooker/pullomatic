@@ -1,10 +1,8 @@
 use crate::config::{Config, Credentials};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use git2;
-use std::fs;
-use std::path::Path;
-use std::sync::Mutex;
 use std::time::Instant;
+use tokio::sync::Mutex;
 use tracing::{debug, info, trace};
 
 #[derive(Debug)]
@@ -15,11 +13,13 @@ struct RepoState {
 
 #[derive(Debug)]
 pub struct Repo {
-    name: String,
-    config: Config,
+    pub name: String,
+    pub config: Config,
 
     state: Mutex<RepoState>,
 }
+
+const TARGET_REF: &'static str = "refs/pullomatic";
 
 impl Repo {
     pub fn new(name: String, config: Config) -> Self {
@@ -34,25 +34,22 @@ impl Repo {
         };
     }
 
-    pub fn update(&self) -> Result<bool> {
+    pub async fn update(&self) -> Result<bool> {
+        let mut state = self.state.lock().await;
+
         let now = Some(Instant::now());
+        state.last_checked = now;
 
-        self.state.lock().expect("Lock poisoned").last_checked = now;
-
-        let path = Path::new(&self.config.path);
+        let path = self.config.path.as_path();
 
         let repository: git2::Repository;
         if path.exists() {
             debug!("Using existing repository");
-
-            // Open the repo or give up
-            repository = git2::Repository::open(path)?;
+            repository = tokio::task::block_in_place(|| git2::Repository::open(path))?;
         } else {
             debug!("Initialized new repository");
-
-            // Create the directory and init the repo
-            fs::create_dir_all(path)?;
-            repository = git2::Repository::init(path)?;
+            tokio::fs::create_dir_all(path).await?;
+            repository = tokio::task::block_in_place(|| git2::Repository::init(path))?;
         }
 
         let mut remote = repository.remote_anonymous(&self.config.remote_url)?;
@@ -105,53 +102,65 @@ impl Repo {
         });
 
         debug!("Fetching data from remote");
-        remote.fetch(
-            &[&format!("+{}:refs/pullomatic", self.config.remote_ref())],
-            Some(
-                git2::FetchOptions::new()
-                    .prune(git2::FetchPrune::On)
-                    .remote_callbacks(remote_cb),
-            ),
-            None,
-        )?;
+        tokio::task::block_in_place(|| {
+            // Fetch the remote branch head ref into our target ref
+            remote
+                .fetch(
+                    &[&format!("+{}:{}", self.config.remote_ref(), TARGET_REF)],
+                    Some(
+                        git2::FetchOptions::new()
+                            .prune(git2::FetchPrune::On)
+                            .download_tags(git2::AutotagOption::None)
+                            .remote_callbacks(remote_cb),
+                    ),
+                    None,
+                )
+                .with_context(|| {
+                    format!(
+                        "Failed to fetch data from remote: {}",
+                        self.config.remote_ref()
+                    )
+                })
+        })?;
         debug!("Fetched data from remote");
 
-        //        repository.find_reference("HEAD")?;
         let latest_obj = repository.revparse_single("HEAD").ok();
-        let remote_obj = repository.revparse_single("refs/pullomatic")?;
+        let target_obj = repository
+            .revparse_single(TARGET_REF)
+            .expect("target ref fetched");
 
+        // If the remote ref is the same as the local HEAD ref, we're up to date
         if let Some(ref latest_obj) = latest_obj {
-            if latest_obj.id() == remote_obj.id() {
+            if latest_obj.id() == target_obj.id() {
                 debug!("Already up to date");
                 return Ok(false);
             }
         }
 
-        repository.reset(
-            &remote_obj,
-            git2::ResetType::Hard,
-            Some(
-                git2::build::CheckoutBuilder::new()
-                    .force()
-                    .remove_untracked(true),
-            ),
-        )?;
+        tokio::task::block_in_place(|| {
+            // Reset the local HEAD ref to the remote ref, and force a checkout
+            repository
+                .reset(
+                    &target_obj,
+                    git2::ResetType::Hard,
+                    Some(
+                        git2::build::CheckoutBuilder::new()
+                            .force()
+                            .remove_untracked(true),
+                    ),
+                )
+                .with_context(|| format!("Failed to reset repo to target ref: {}", target_obj.id()))
+        })?;
 
-        info!("Updated to {}", remote_obj.id());
-        self.state.lock().unwrap().last_changed = now;
+        info!("Updated to {}", target_obj.id());
+        state.last_changed = now;
 
         return Ok(true);
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn config(&self) -> &Config {
-        &self.config
-    }
-
-    pub fn last_checked(&self) -> Option<Instant> {
-        self.state.lock().unwrap().last_checked
+    #[allow(unused)]
+    pub async fn last_checked(&self) -> Option<Instant> {
+        let state = self.state.lock().await;
+        return state.last_checked;
     }
 }
