@@ -11,7 +11,7 @@ mod gitlab;
 mod plain;
 
 async fn root() -> &'static str {
-    return "pullomatic webhook server";
+    "pullomatic webhook server"
 }
 
 pub fn serve(
@@ -43,14 +43,14 @@ pub fn serve(
         );
     }
 
-    return async move {
+    async move {
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app)
             .with_graceful_shutdown(running.cancelled_owned())
             .await?;
 
-        return Ok(());
-    };
+        Ok(())
+    }
 }
 
 // fn handle(repo: &Repo, request: &Request) -> Result<bool, String> {

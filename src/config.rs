@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use serde_humantime;
-use serde_yaml;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -15,12 +13,12 @@ pub enum Secret {
 
 impl Secret {
     pub async fn load(&self) -> Result<String> {
-        return Ok(match self {
+        Ok(match self {
             Secret::Literal(s) => s.clone(),
             Secret::File { file } => tokio::fs::read_to_string(file)
                 .await
                 .with_context(|| format!("Failed to read secret file: {}", file.display()))?,
-        });
+        })
     }
 }
 
@@ -116,7 +114,7 @@ impl Config {
             configs.insert(name, config);
         }
 
-        return Ok(configs);
+        Ok(configs)
     }
 
     async fn load_config(path: &Path) -> Result<Self> {
@@ -129,10 +127,10 @@ impl Config {
         let config = serde_yaml::from_str(&input)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
 
-        return Ok(config);
+        Ok(config)
     }
 
     pub fn remote_ref(&self) -> String {
-        return format!("refs/heads/{}", self.remote_branch);
+        format!("refs/heads/{}", self.remote_branch)
     }
 }

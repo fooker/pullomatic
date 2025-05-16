@@ -13,9 +13,9 @@ pub(super) fn router(
     producer: tokio::sync::mpsc::Sender<Arc<Repo>>,
     repo: Arc<Repo>,
 ) -> Router {
-    return Router::new()
+    Router::new()
         .route("/", post(handle))
-        .with_state((config, producer, repo));
+        .with_state((config, producer, repo))
 }
 
 async fn handle(
@@ -28,5 +28,5 @@ async fn handle(
     debug!("Trigger update from hook");
     producer.send(repo.clone()).await.expect("Receiver dropped");
 
-    return Ok(());
+    Ok(())
 }

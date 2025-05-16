@@ -180,5 +180,5 @@ async fn precess(repo: Arc<Repo>) -> Result<()> {
 
     child.wait().await.context("Failed to wait for script")?;
 
-    return Ok(());
+    Ok(())
 }

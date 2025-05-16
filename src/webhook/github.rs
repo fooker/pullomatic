@@ -8,8 +8,6 @@ use axum::routing::post;
 use crypto::hmac::Hmac;
 use crypto::mac::{Mac, MacResult};
 use crypto::sha1::Sha1;
-use hex;
-use json;
 use std::sync::Arc;
 use tracing::{debug, trace};
 
@@ -18,9 +16,9 @@ pub(super) fn router(
     producer: tokio::sync::mpsc::Sender<Arc<Repo>>,
     repo: Arc<Repo>,
 ) -> Router {
-    return Router::<_>::new()
+    Router::<_>::new()
         .route("/", post(handle))
-        .with_state((config, producer, repo));
+        .with_state((config, producer, repo))
 }
 
 async fn handle(
@@ -86,5 +84,5 @@ async fn handle(
     debug!("Trigger update from hook");
     producer.send(repo.clone()).await.expect("Receiver dropped");
 
-    return Ok(());
+    Ok(())
 }

@@ -1,6 +1,5 @@
 use crate::config::{Config, Credentials};
 use anyhow::{Context, Result};
-use git2;
 use std::time::Instant;
 use tokio::sync::Mutex;
 use tracing::{debug, info, trace};
@@ -19,11 +18,11 @@ pub struct Repo {
     state: Mutex<RepoState>,
 }
 
-const TARGET_REF: &'static str = "refs/pullomatic";
+const TARGET_REF: &str = "refs/pullomatic";
 
 impl Repo {
     pub fn new(name: String, config: Config) -> Self {
-        return Self {
+        Self {
             name,
             config,
 
@@ -31,7 +30,7 @@ impl Repo {
                 last_checked: None,
                 last_changed: None,
             }),
-        };
+        }
     }
 
     pub async fn update(&self) -> Result<bool> {
@@ -79,7 +78,7 @@ impl Repo {
                         return git2::Cred::userpass_plaintext(&plain_username, &plain_password);
                     }
 
-                    return Err(git2::Error::from_str("Unsupported authentication"));
+                    Err(git2::Error::from_str("Unsupported authentication"))
                 });
             }
 
@@ -100,7 +99,7 @@ impl Repo {
                     trace!("cred: allowed = {:?}", allowed);
 
                     if allowed.contains(git2::CredentialType::USERNAME) {
-                        return git2::Cred::username(&ssh_username);
+                        return git2::Cred::username(ssh_username);
                     }
 
                     if allowed.contains(git2::CredentialType::SSH_KEY) {
@@ -112,7 +111,7 @@ impl Repo {
                         );
                     }
 
-                    return Err(git2::Error::from_str("Unsupported authentication"));
+                    Err(git2::Error::from_str("Unsupported authentication"))
                 });
             }
         }
@@ -171,12 +170,12 @@ impl Repo {
         info!("Updated to {}", target_obj.id());
         state.last_changed = now;
 
-        return Ok(true);
+        Ok(true)
     }
 
     #[allow(unused)]
     pub async fn last_checked(&self) -> Option<Instant> {
         let state = self.state.lock().await;
-        return state.last_checked;
+        state.last_checked
     }
 }
