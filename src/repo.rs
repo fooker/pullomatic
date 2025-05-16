@@ -55,51 +55,67 @@ impl Repo {
         let mut remote = repository.remote_anonymous(&self.config.remote_url)?;
 
         let mut remote_cb = git2::RemoteCallbacks::new();
-        remote_cb.credentials(|url, username, allowed| {
-            trace!("cred: url = {:?}", url);
-            trace!("cred: username = {:?}", username);
-            trace!("cred: allowed = {:?}", allowed);
+        match &self.config.credentials {
+            None => {}
 
-            if allowed.contains(git2::CredentialType::USERNAME) {
-                match self.config.credentials {
-                    Some(Credentials::SSH(ref ssh)) => {
-                        if let Some(ref username) = ssh.username {
-                            return git2::Cred::username(username);
-                        }
+            Some(Credentials::Password(password)) => {
+                let plain_username = password.username.clone();
+                let plain_password = password.password.load().await?;
+
+                remote_cb.credentials(move |url, username, allowed| {
+                    trace!("cred: url = {:?}", url);
+                    trace!("cred: username = {:?}", username);
+                    trace!("cred: allowed = {:?}", allowed);
+
+                    if username != Some(plain_username.as_str()) {
+                        return Err(git2::Error::from_str("Invalid username"));
                     }
 
-                    Some(Credentials::Password(ref password)) => {
-                        if let Some(ref username) = password.username {
-                            return git2::Cred::username(username);
-                        }
+                    if allowed.contains(git2::CredentialType::USERNAME) {
+                        return git2::Cred::username(&plain_username);
                     }
 
-                    None => return Err(git2::Error::from_str("Authentication is required")),
-                }
+                    if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                        return git2::Cred::userpass_plaintext(&plain_username, &plain_password);
+                    }
+
+                    return Err(git2::Error::from_str("Unsupported authentication"));
+                });
             }
 
-            if allowed.contains(git2::CredentialType::SSH_MEMORY) {
-                if let Some(Credentials::SSH(ref ssh)) = self.config.credentials {
-                    return git2::Cred::ssh_key_from_memory(
-                        username.unwrap(),
-                        ssh.public_key.as_ref().map(String::as_ref),
-                        ssh.private_key.as_ref(),
-                        ssh.passphrase.as_ref().map(String::as_ref),
-                    );
-                }
-            }
+            Some(Credentials::SSH(ssh)) => {
+                let ssh_username = ssh.username.as_str();
 
-            if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
-                if let Some(Credentials::Password(ref password)) = self.config.credentials {
-                    return git2::Cred::userpass_plaintext(
-                        username.unwrap(),
-                        password.password.as_ref(),
-                    );
-                }
-            }
+                let ssh_private_key = ssh.private_key.load().await?;
+                let ssh_public_key = ssh.public_key.as_ref().map(String::as_ref);
 
-            return Err(git2::Error::from_str("Unsupported authentication"));
-        });
+                let ssh_passphrase = match ssh.passphrase {
+                    Some(ref passphrase) => Some(passphrase.load().await?),
+                    None => None,
+                };
+
+                remote_cb.credentials(move |url, username, allowed| {
+                    trace!("cred: url = {:?}", url);
+                    trace!("cred: username = {:?}", username);
+                    trace!("cred: allowed = {:?}", allowed);
+
+                    if allowed.contains(git2::CredentialType::USERNAME) {
+                        return git2::Cred::username(&ssh_username);
+                    }
+
+                    if allowed.contains(git2::CredentialType::SSH_KEY) {
+                        return git2::Cred::ssh_key_from_memory(
+                            ssh_username,
+                            ssh_public_key,
+                            ssh_private_key.as_ref(),
+                            ssh_passphrase.as_ref().map(String::as_ref),
+                        );
+                    }
+
+                    return Err(git2::Error::from_str("Unsupported authentication"));
+                });
+            }
+        }
 
         debug!("Fetching data from remote");
         tokio::task::block_in_place(|| {

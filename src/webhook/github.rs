@@ -45,7 +45,14 @@ async fn handle(
             hex::decode(signature).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid signature"))?;
         let signature = MacResult::new_from_owned(signature);
 
-        let mut hmac = Hmac::new(Sha1::new(), secret.as_bytes());
+        let mut hmac = Hmac::new(
+            Sha1::new(),
+            secret
+                .load()
+                .await
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load secret"))?
+                .as_bytes(),
+        );
         hmac.input(body.as_bytes());
 
         if signature != hmac.result() {

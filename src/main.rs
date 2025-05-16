@@ -124,7 +124,7 @@ async fn main() -> Result<()> {
                 });
                 let task = task.instrument(info_span!("Update repo", repo = repo.name));
 
-                tasks.spawn(task);
+                task.await;
             }
         }
     }

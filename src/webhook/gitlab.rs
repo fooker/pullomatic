@@ -30,7 +30,12 @@ async fn handle(
 ) -> Result<(), (StatusCode, &'static str)> {
     // Check if the token matches
     if let Some(ref token) = config.token {
-        if token
+        let token = token
+            .load()
+            .await
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load secret"))?;
+
+        if token.as_bytes()
             != headers
                 .get("X-Gitlab-Token")
                 .ok_or((StatusCode::UNAUTHORIZED, "Token missing"))?
