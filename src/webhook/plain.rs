@@ -1,10 +1,10 @@
 use crate::config::PlainWebhook;
 use crate::repo::Repo;
 use anyhow::Result;
-use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::post;
+use axum::Router;
 use std::sync::Arc;
 use tracing::debug;
 

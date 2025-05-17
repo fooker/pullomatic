@@ -66,10 +66,6 @@ impl Repo {
                     trace!("cred: username = {:?}", username);
                     trace!("cred: allowed = {:?}", allowed);
 
-                    if username != Some(plain_username.as_str()) {
-                        return Err(git2::Error::from_str("Invalid username"));
-                    }
-
                     if allowed.contains(git2::CredentialType::USERNAME) {
                         return git2::Cred::username(&plain_username);
                     }

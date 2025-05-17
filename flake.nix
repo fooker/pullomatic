@@ -4,18 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    crane = {
-      url = "github:ipetkov/crane";
-    };
-
     flake-utils.url = "github:numtide/flake-utils";
-
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
 
     pre-commit-hooks = {
       url = "github:cachix/git-hooks.nix";
@@ -25,42 +14,15 @@
     };
   };
 
-  outputs = { self, nixpkgs, crane, flake-utils, rust-overlay, pre-commit-hooks, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, flake-utils, pre-commit-hooks, ... }:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ (import rust-overlay) ];
-        };
+        pkgs = nixpkgs.legacyPackages.${system};
 
-        rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-
-        craneLib = (crane.mkLib pkgs).overrideToolchain rust;
-
-        pullomatic = craneLib.buildPackage {
-          pname = "pullomatic";
-
-          src = craneLib.path ./.;
-
-          strictDeps = true;
-
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-          ];
-
-          buildInputs = with pkgs; [
-            openssl
-            libgit2
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.libiconv
-          ];
-
-          LIBGIT2_NO_VENDOR = 1;
-        };
       in
       {
         checks = {
-          inherit pullomatic;
+          inherit (self.packages.${system}) pullomatic;
 
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
             src = ./.;
@@ -71,32 +33,27 @@
               clippy = {
                 enable = true;
                 settings.allFeatures = true;
-                package = rust;
               };
 
               cargo-check = {
                 enable = true;
-                package = rust;
               };
 
               rustfmt = {
                 enable = true;
-                package = rust;
               };
             };
           };
         };
 
         packages = {
-          inherit pullomatic;
+          pullomatic = pkgs.callPackage ./package.nix { };
           default = self.packages.${system}.pullomatic;
         };
 
-        devShells.default = craneLib.devShell {
-          checks = self.checks.${system};
-
-          inputsFrom = [ pullomatic ]
-            ++ self.checks.${system}.pre-commit-check.enabledPackages;
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ self.packages.${system}.pullomatic ]
+          ++ self.checks.${system}.pre-commit-check.enabledPackages;
 
           packages = with pkgs; [
             cargo-deny
@@ -111,7 +68,13 @@
           inherit (self.checks.${system}.pre-commit-check) shellHook;
 
           RUST_BACKTRACE = 1;
-          RUST_SRC_PATH = "${rust}/lib.rs/rustlib/src/rust/library";
+          #RUST_SRC_PATH = "${pkgs.rust}/lib.rs/rustlib/src/rust/library";
         };
-      });
+      })
+    ) // {
+      nixosModules = {
+        pullomatic = ./module.nix;
+        default = self.nixosModules.pullomatic;
+      };
+    };
 }

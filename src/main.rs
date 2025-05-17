@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, Level, debug, error, info_span, trace};
+use tracing::{debug, error, info_span, trace, Instrument, Level};
 
 mod config;
 mod repo;

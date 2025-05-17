@@ -1,8 +1,9 @@
 use crate::config::Webhook;
 use crate::repo::Repo;
 use anyhow::Result;
-use axum::Router;
 use axum::routing::get;
+use axum::Router;
+use std::future::Future;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
