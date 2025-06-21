@@ -5,9 +5,8 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::Router;
-use crypto::hmac::Hmac;
-use crypto::mac::{Mac, MacResult};
-use crypto::sha1::Sha1;
+use hmac::{Hmac, Mac};
+use sha1::Sha1;
 use std::sync::Arc;
 use tracing::{debug, trace};
 
@@ -41,19 +40,18 @@ async fn handle(
             .ok_or((StatusCode::UNAUTHORIZED, "Signature prefix missing"))?;
         let signature =
             hex::decode(signature).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid signature"))?;
-        let signature = MacResult::new_from_owned(signature);
 
-        let mut hmac = Hmac::new(
-            Sha1::new(),
+        let mut hmac = Hmac::<Sha1>::new_from_slice(
             secret
                 .load()
                 .await
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load secret"))?
                 .as_bytes(),
-        );
-        hmac.input(body.as_bytes());
+        )
+        .expect("HMAC can take key of any size");
+        hmac.update(body.as_bytes());
 
-        if signature != hmac.result() {
+        if let Err(_) = hmac.verify_slice(&signature) {
             return Err((StatusCode::UNAUTHORIZED, "Signature mismatch"));
         }
     }
