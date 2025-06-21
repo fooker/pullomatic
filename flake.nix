@@ -60,6 +60,9 @@
             cargo-outdated
             cargo-machete
 
+            rustfmt
+            clippy
+
             codespell
 
             nodejs
