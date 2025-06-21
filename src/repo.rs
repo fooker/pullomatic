@@ -78,7 +78,7 @@ impl Repo {
                 });
             }
 
-            Some(Credentials::SSH(ssh)) => {
+            Some(Credentials::Ssh(ssh)) => {
                 let ssh_username = ssh.username.as_str();
 
                 let ssh_private_key = ssh.private_key.load().await?;
