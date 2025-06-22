@@ -23,7 +23,7 @@ impl Secret {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct SSHCredentials {
+pub struct SshCredentials {
     pub username: String,
 
     pub public_key: Option<String>,
@@ -41,7 +41,7 @@ pub struct PasswordCredentials {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Credentials {
-    SSH(SSHCredentials),
+    Ssh(SshCredentials),
     Password(PasswordCredentials),
 }
 

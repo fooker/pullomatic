@@ -18,14 +18,15 @@ futures = "0.3.31"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 
-git2 = "0.19.0"
+git2 = "0.20.0"
 
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.33"
 serde-humantime = "0.1.1"
 
 axum = { version = "0.8.4", features = ["macros"] }
-rust-crypto = "0.2"
+hmac = "0.12.1"
+sha1 = "0.10.6"
 hex = "0.4.3"
 json = "0.12.4"
 
