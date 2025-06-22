@@ -1,7 +1,9 @@
 [package]
 name = "pullomatic"
+description = "Automates git repository syncing through pure configuration"
 version = "0.1.0"
 authors = ["Dustin Frisch <fooker@lab.sh>"]
+license = "MIT"
 
 edition = "2021"
 
