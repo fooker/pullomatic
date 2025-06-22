@@ -8,3 +8,5 @@ pullomatic.iml
 
 # NIX
 /result
+
+.pre-commit-config.yaml
