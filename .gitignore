@@ -8,5 +8,9 @@ pullomatic.iml
 
 # NIX
 /result
+/.direnv/
+/.envrc
 
 .pre-commit-config.yaml
+
+config.example/
