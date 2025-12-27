@@ -13,7 +13,7 @@ rustPlatform.buildRustPackage {
   src = lib.cleanSource ./.;
 
   uesFetchCargoVendor = true;
-  cargoHash = "sha256-+B/DzDaF3qQlPzjh97CBMAseyeUClgsgzE0EJ8kTlqg=";
+  cargoHash = "sha256-HsvVJd5UYsQ42lwqnaAiiuYQYaNbEBDJ9unquBHD3Ug=";
 
   nativeBuildInputs = [
     pkg-config
