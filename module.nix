@@ -21,6 +21,10 @@ in
   options.services.pullomatic = {
     enable = mkEnableOption "pullomatic";
 
+    package = mkPackageOption pkgs "pullomatic" {
+      default = pullomatic;
+    };
+
     repos = mkOption {
       type = types.attrsOf (repoFormat.type);
       default = { };
@@ -39,7 +43,7 @@ in
       serviceConfig = {
         Type = "simple";
         Restart = "always";
-        ExecStart = "${pullomatic}/bin/pullomatic --config '${repos}'";
+        ExecStart = "${cfg.package}/bin/pullomatic --config '${repos}'";
       };
     };
   };
