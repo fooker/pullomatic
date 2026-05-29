@@ -21,7 +21,8 @@ in
   options.services.pullomatic = {
     enable = mkEnableOption "pullomatic";
 
-    package = mkPackageOption pkgs "pullomatic" {
+    package = mkOption {
+      type = types.package;
       default = pullomatic;
     };
 
