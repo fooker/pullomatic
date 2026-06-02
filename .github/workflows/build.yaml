@@ -12,7 +12,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Check Formatting
       run: cargo fmt --all -- --check
     - name: Check Clippy
@@ -22,7 +22,7 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Build
         run: cargo build --verbose --all-features
       - name: Test
