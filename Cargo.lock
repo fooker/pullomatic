@@ -1202,9 +1202,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.17"
+version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2efa149fe76073d6e8fd97ef4f4eca7b67f599660115591483572e406e165594"
+checksum = "e464cf451ba96ebfc6f9b6542f17ee8b8956e33f1e40d9690624e59d7a7f8a4b"
 dependencies = [
  "bytes",
  "futures-core",
@@ -1212,6 +1212,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "hashbrown",
+ "libc",
  "pin-project-lite",
  "slab",
  "tokio",
